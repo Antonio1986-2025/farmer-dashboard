@@ -16,14 +16,14 @@
   "services": [
     {
       "name": "web",
-      "sourceRepository": "https://github.com/SEU_USUARIO/farmer-dashboard",
+      "sourceRepository": "https://github.com/Antonio1986-2025/farmer-dashboard",
       "domains": []
     },
     {
       "name": "coleta-diaria",
       "cronSchedule": "0 10 * * 1-5",
-      "command": "curl -X POST https://SEU_PROJETO.railway.app/api/coletar",
-      "sourceRepository": "https://github.com/SEU_USUARIO/farmer-dashboard"
+      "command": "curl -X POST https://farmer-dashboard.railway.app/api/coletar",
+      "sourceRepository": "https://github.com/Antonio1986-2025/farmer-dashboard"
     }
   ]
 }
