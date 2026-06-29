@@ -20,12 +20,9 @@ RUN pip install --no-cache-dir -r requisicoes.txt && \
 RUN python -m playwright install chromium
 RUN python -m playwright install-deps chromium
 
-# Cria diretório de dados persistente
-RUN mkdir -p /app/dados
-
 # Código do app
 COPY . .
 
-EXPOSE 8080
+RUN mkdir -p /app/dados/db
 
-CMD uvicorn servidor:app --host 0.0.0.0 --port ${PORT:-8080}
+CMD uvicorn servidor:app --host 0.0.0.0 --port ${PORT:-8000}

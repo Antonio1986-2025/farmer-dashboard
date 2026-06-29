@@ -1,8 +1,9 @@
 import sqlite3
 from datetime import date
-from config import BANCO_PATH
+from config import BANCO_PATH, PASTA_DADOS
 
 def conectar():
+    PASTA_DADOS.mkdir(parents=True, exist_ok=True)
     return sqlite3.connect(BANCO_PATH)
 
 def criar_tabelas():

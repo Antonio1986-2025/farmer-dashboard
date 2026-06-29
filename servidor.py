@@ -1,32 +1,22 @@
-"""Servidor web FastAPI para o Farmer Dashboard.
-
-Fornece:
-- GET  /          → Dashboard HTML
-- GET  /api/dados → JSON com dados do dia
-- POST /api/coletar → Dispara coleta manual
-- POST /api/trade → Registra um trade
-- PUT  /api/trade/{id} → Fecha um trade
-"""
+"""Servidor web FastAPI para o Farmer Dashboard."""
 import asyncio
-import json
-from pathlib import Path
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from config import PASTA_PROJETO
 from dados import banco
 from coletores import precos, cepaea, clima
 from analise import regras
-from alerta import enviar, formatar
+from alerta import enviar
 from dashboard import gerar
 
 app = FastAPI(title="Farmer Dashboard", version="1.0")
 
-# ─── Dados em cache (evita coletar a toda requisição) ─────
 cache = {"dados_precos": {}, "dados_cepea": {}, "dados_clima": [], "alertas": []}
+startup_ok = False
 
 
 async def coleta_completa() -> dict:
@@ -165,10 +155,21 @@ async def api_fechar_trade(trade_id: int, saida: TradeSaida):
 
 @app.on_event("startup")
 async def startup():
-    """Roda a primeira coleta ao iniciar."""
-    print("🚀 Iniciando primeira coleta...")
+    asyncio.create_task(_background_startup())
+
+async def _background_startup():
+    global startup_ok
+    banco.criar_tabelas()
     try:
         await coleta_completa()
-        print(f"✅ Coleta inicial concluída — {len(cache['alertas'])} alertas")
+        startup_ok = True
     except Exception as e:
-        print(f"⚠️ Coleta inicial falhou: {e}")
+        pass
+
+@app.get("/api/health")
+async def health():
+    if startup_ok or banco.pegar_ultimo_preco():
+        return {"status": "ok"}
+    # Se a coleta inicial ainda estiver rodando, retorna 503
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"status": "starting"}, status_code=503)

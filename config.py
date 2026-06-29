@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 PASTA_PROJETO = Path(__file__).parent
-PASTA_DADOS = PASTA_PROJETO / "dados"
+PASTA_DADOS = PASTA_PROJETO / "dados" / "db"
 BANCO_PATH = PASTA_DADOS / "historico.db"
 
 # ─── URLs de coleta ─────────────────────────────────────────
