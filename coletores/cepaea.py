@@ -1,19 +1,18 @@
-"""Coleta indicadores do CEPEA usando Scrapling (StealthFetcher).
-
-O CEPEA pode bloquear requisições simples (403).
-O StealthFetcher do Scrapling consegue contornar isso
-simulando um navegador real.
-"""
+"""Coleta indicadores do CEPEA usando Scrapling (StealthFetcher)."""
+import asyncio
 from config import URL_CEPEA_MILHO, URL_CEPEA_BOI
 
 
 async def _coletar_cepea(url: str, nome: str) -> float | None:
-    """Tenta extrair o indicador do CEPEA usando StealthFetcher."""
+    """Tenta extrair o indicador do CEPEA rodando StealthFetcher em thread separada."""
     try:
         from scrapling.fetchers import StealthyFetcher
 
-        page = StealthyFetcher.fetch(url, headless=True, network_idle=True)
-        texto = page.content
+        def _fetch():
+            return StealthyFetcher.fetch(url, headless=True, network_idle=True)
+
+        page = await asyncio.to_thread(_fetch)
+        texto = page.body
 
         # O CEPEA exibe o indicador em uma tabela ou div com classes específicas
         import re
