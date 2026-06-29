@@ -29,12 +29,12 @@ REGIÕES_CLIMA = [
     {"nome": "Rio Verde-GO", "lat": -17.79, "lon": -50.92},
 ]
 
-# ─── Evolution API (WhatsApp) ───────────────────────────────
-# Instale a Evolution API via Docker ou use uma hospedada
-# Todos podem ser configurados via variáveis de ambiente
-EVO_API_URL = os.getenv("EVO_API_URL", "http://localhost:8080")
-EVO_API_KEY = os.getenv("EVO_API_KEY", "")
-EVO_INSTANCE = os.getenv("EVO_INSTANCE", "farmer")
+# ─── OpenWA (WhatsApp) ──────────────────────────────────────
+# OpenWA é um gateway WhatsApp open-source
+# https://github.com/rmyndharis/OpenWA
+OPENWA_API_URL = os.getenv("OPENWA_API_URL", "http://localhost:2785")
+OPENWA_API_KEY = os.getenv("OPENWA_API_KEY", "")
+OPENWA_SESSION = os.getenv("OPENWA_SESSION", "farmer")
 SEU_NUMERO = os.getenv("SEU_NUMERO", "553199999999")
 
 # ─── Configurações de análise ───────────────────────────────

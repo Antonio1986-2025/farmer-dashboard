@@ -1,13 +1,12 @@
 ╔══════════════════════════════════════════════════╗
-║      EVOLUTION API — SETUP RÁPIDO               ║
+║         OPENWA — SETUP RÁPIDO                   ║
 ╚══════════════════════════════════════════════════╝
 
-A Evolution API é necessária para enviar os alertas
-pelo WhatsApp. Ela funciona como uma ponte entre
-o sistema e seu WhatsApp.
+OpenWA é um gateway WhatsApp open-source e gratuito.
+https://github.com/rmyndharis/OpenWA
 
 ────────────────────────────────────────────────────
-OPÇÃO 1: DOCKER (recomendada)
+DOCKER (recomendado)
 ────────────────────────────────────────────────────
 
 1. Instale o Docker Desktop:
@@ -15,44 +14,39 @@ OPÇÃO 1: DOCKER (recomendada)
 
 2. Abra o terminal (PowerShell) e rode:
 
-   docker run --name evolution-api -d \
-     -p 8080:8080 \
-     -e AUTHENTICATION_API_KEY="minhachave123" \
-     -e DATABASE_ENABLED=true \
-     -e DATABASE_CONNECTION_URI="sqlite:///evolution.db" \
-     -v evolution-data:/evolution/store \
-     atendai/evolution-api:latest
+   git clone https://github.com/rmyndharis/OpenWA.git
+   cd OpenWA
+   docker compose -f docker-compose.dev.yml up -d
 
-3. Acesse no navegador:
-   http://localhost:8080
+3. Acesse o dashboard:
+   http://localhost:2785
 
-4. No menu, crie uma instância chamada "farmer"
+4. Crie uma chave de API:
+   - Vá em API Keys > Create Key
+   - Dê um nome (ex: "farmer")
+   - Copie a chave gerada
 
-5. Leia o QR Code com seu WhatsApp
+5. Crie uma sessão "farmer":
+   - Vá em Sessions > Create Session
+   - Nome: farmer
+   - Leia o QR Code com seu WhatsApp
 
 6. Teste o envio:
-   http://localhost:8080/message/sendText/farmer
-   Body JSON: { "number": "553199999999", "text": "Teste!" }
-   Header: apikey = minhachave123
 
-────────────────────────────────────────────────────
-OPÇÃO 2: HOSPEDADO (pago)
-────────────────────────────────────────────────────
-
-Existem serviços brasileiros que hospedam a
-Evolution API por você. Pesquise por:
-  "Evolution API hospedado"
-  "WhatsApp API Brasil"
+   curl -X POST http://localhost:2785/api/sessions/farmer/messages/send-text \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: SUA_CHAVE" \
+     -d '{"chatId": "553199999999@c.us", "text": "Teste!"}'
 
 ────────────────────────────────────────────────────
 CONFIGURANDO NO SISTEMA
 ────────────────────────────────────────────────────
 
-Depois da Evolution API rodando, edite o config.py:
+Edite o config.py (ou use variáveis de ambiente):
 
-   EVO_API_URL = "http://localhost:8080"
-   EVO_API_KEY = "minhachave123"
-   EVO_INSTANCE = "farmer"
+   OPENWA_API_URL = "http://localhost:2785"
+   OPENWA_API_KEY = "sua_chave_aqui"
+   OPENWA_SESSION = "farmer"
    SEU_NUMERO = "553199999999"  (seu WhatsApp)
 
 ────────────────────────────────────────────────────

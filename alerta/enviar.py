@@ -1,20 +1,19 @@
-"""Envio de mensagens via Evolution API (WhatsApp).
+"""Envio de mensagens via OpenWA (WhatsApp API Gateway).
 
-Evolution API é uma API brasileira open-source baseada no Baileys.
-Documentação: https://github.com/evolution-api/evolution-api
+OpenWA: https://github.com/rmyndharis/OpenWA
 """
 import requests
-import json
-from config import EVO_API_URL, EVO_API_KEY, EVO_INSTANCE, SEU_NUMERO
+from config import OPENWA_API_URL, OPENWA_API_KEY, OPENWA_SESSION, SEU_NUMERO
 
 
-def _formatar_numero(numero: str) -> str:
-    """Garante que o número está no formato correto (553199999999)."""
-    return numero.replace("+", "").replace("-", "").replace(" ", "")
+def _formatar_chatid(numero: str) -> str:
+    """Formata o número para o formato aceito pelo OpenWA: 553199999999@c.us"""
+    numero = numero.replace("+", "").replace("-", "").replace(" ", "")
+    return f"{numero}@c.us"
 
 
 def enviar_mensagem(texto: str, numero: str = None) -> bool:
-    """Envia mensagem via Evolution API.
+    """Envia mensagem via OpenWA.
 
     Args:
         texto: Mensagem a ser enviada.
@@ -23,20 +22,20 @@ def enviar_mensagem(texto: str, numero: str = None) -> bool:
     Returns:
         True se enviou com sucesso, False caso contrário.
     """
-    if EVO_API_URL == "http://localhost:8080" and EVO_API_KEY == "":
-        print("  ⚠️ WhatsApp: Evolution API não configurada (config.py)")
+    if OPENWA_API_KEY == "":
+        print("  ⚠️ WhatsApp: OpenWA não configurado (OPENWA_API_KEY)")
         print(f"  📝 Mensagem que seria enviada:\n{texto}\n")
         return False
 
-    numero = _formatar_numero(numero or SEU_NUMERO)
+    chat_id = _formatar_chatid(numero or SEU_NUMERO)
 
-    url = f"{EVO_API_URL}/message/sendText/{EVO_INSTANCE}"
+    url = f"{OPENWA_API_URL}/api/sessions/{OPENWA_SESSION}/messages/send-text"
     headers = {
         "Content-Type": "application/json",
-        "apikey": EVO_API_KEY,
+        "X-API-Key": OPENWA_API_KEY,
     }
     payload = {
-        "number": numero,
+        "chatId": chat_id,
         "text": texto,
     }
 
@@ -47,7 +46,7 @@ def enviar_mensagem(texto: str, numero: str = None) -> bool:
         return True
 
     except requests.exceptions.ConnectionError:
-        print(f"  ❌ WhatsApp: Evolution API não está rodando em {EVO_API_URL}")
+        print(f"  ❌ WhatsApp: OpenWA não está rodando em {OPENWA_API_URL}")
         print(f"  📝 Mensagem que seria enviada:\n{texto}\n")
         return False
     except Exception as e:
