@@ -12,7 +12,7 @@ async def _coletar_cepea(url: str, nome: str) -> float | None:
             return StealthyFetcher.fetch(url, headless=True, network_idle=True)
 
         page = await asyncio.to_thread(_fetch)
-        texto = page.body
+        texto = page.body.decode()
 
         # O CEPEA exibe o indicador em uma tabela ou div com classes específicas
         import re

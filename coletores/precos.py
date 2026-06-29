@@ -8,7 +8,7 @@ async def _extrair_preco(url: str, nome: str) -> float | None:
     try:
         fetcher = AsyncFetcher()
         page = await fetcher.get(url, stealthy_headers=True)
-        html = page.body
+        html = page.body.decode()
 
         # Investing.com coloca o preço em elementos específicos.
         # Padrão comum: um span com a classe contendo "last" ou "text-2xl"
