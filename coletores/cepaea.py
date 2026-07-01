@@ -9,27 +9,23 @@ async def _coletar_cepea(url: str, nome: str) -> float | None:
         from scrapling.fetchers import StealthyFetcher
 
         def _fetch():
-            return StealthyFetcher.fetch(url, headless=True, network_idle=True)
+            return StealthyFetcher.fetch(url, headless=True, network_idle=True, solve_cloudflare=True)
 
         page = await asyncio.to_thread(_fetch)
         texto = page.body.decode()
 
-        # O CEPEA exibe o indicador em uma tabela ou div com classes específicas
         import re
 
-        padroes = [
-            r'class="[^"]*indicador[^"]*"[^>]*>([\d.,]+)',
-            r'id="[^"]*preco[^"]*"[^>]*>([\d.,]+)',
-            r'<strong[^>]*>R\$\s*([\d.,]+)',
-            r'R\$\s*([\d.,]+)</strong>',
-            r'class="[^"]*valor[^"]*"[^>]*>R\$\s*([\d.,]+)',
-        ]
-
-        for padrao in padroes:
-            match = re.search(padrao, texto)
-            if match:
-                valor = match.group(1).replace(".", "").replace(",", ".")
-                return float(valor)
+        # Tabela: <td>data</td> <td>valor R$</td>
+        matches = re.findall(
+            r"<td[^>]*>\s*(\d{2}/\d{2}/\d{4})\s*</td>\s*"
+            r"<td[^>]*>\s*([\d.,]+)\s*</td>\s*"
+            r"<td[^>]*>\s*([-.\d,]+%)",
+            texto,
+        )
+        if matches:
+            valor = matches[0][1].replace(".", "").replace(",", ".")
+            return float(valor)
 
         return None
 

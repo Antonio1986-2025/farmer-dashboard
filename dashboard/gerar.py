@@ -3,6 +3,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import date, timedelta
 from dados import banco
+from dados.historico import pegar_estatisticas_historicas
+from analise import acertos
 
 
 def gerar_grafico_precos(registros: list) -> str:
@@ -118,17 +120,19 @@ def gerar_tabela_alertas(alertas: list) -> str:
         </tr>""")
 
     return f"""
-    <table style="width:100%;border-collapse:collapse;">
+    <div class="table-wrap">
+    <table>
         <thead>
-            <tr style="background:#f8f9fa;">
-                <th style="padding:10px;text-align:left;width:40px;">Sinal</th>
-                <th style="padding:10px;text-align:left;">Alerta</th>
-                <th style="padding:10px;text-align:center;">Confiança</th>
-                <th style="padding:10px;text-align:center;">Prazo</th>
+            <tr>
+                <th>Sinal</th>
+                <th>Alerta</th>
+                <th>Confiança</th>
+                <th>Prazo</th>
             </tr>
         </thead>
         <tbody>{''.join(linhas)}</tbody>
-    </table>"""
+    </table>
+    </div>"""
 
 
 def gerar_resumo_clima(dados_clima: list) -> str:
@@ -157,9 +161,9 @@ def gerar_resumo_clima(dados_clima: list) -> str:
     return f'<div style="display:flex;gap:10px;flex-wrap:wrap;">{"".join(cards)}</div>'
 
 
-def gerar_resumo_trades() -> str:
+def gerar_resumo_trades(usuario_id: int | None = None) -> str:
     """Gera HTML com resumo dos trades."""
-    resumo = banco.pegar_resumo_trades()
+    resumo = banco.pegar_resumo_trades(usuario_id)
     if not resumo or resumo[0] is None or resumo[0] == 0:
         return """
         <div style="padding:15px;color:#888;">
@@ -211,22 +215,25 @@ def gerar_tabela_estatisticas_sinais() -> str:
         </tr>""")
 
     return f"""
-    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <div class="table-wrap">
+    <table>
         <thead>
-            <tr style="background:#f8f9fa;">
-                <th style="padding:8px;text-align:left;">Padrão</th>
-                <th style="padding:8px;text-align:left;">Direção</th>
-                <th style="padding:8px;text-align:center;">Taxa de Acerto</th>
-                <th style="padding:8px;text-align:center;">Acertos/Total</th>
+            <tr>
+                <th>Padrão</th>
+                <th>Direção</th>
+                <th>Taxa de Acerto</th>
+                <th>Acertos/Total</th>
             </tr>
         </thead>
         <tbody>{''.join(linhas)}</tbody>
-    </table>"""
+    </table>
+    </div>"""
 
 
 def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
                     dados_clima: list, alertas: list,
-                    output_path: str = None) -> str:
+                    output_path: str = None,
+                    usuario_id: int | None = None) -> str:
     """Gera o dashboard HTML completo."""
     hoje = date.today().strftime("%d/%m/%Y")
     registros = banco.pegar_ultimos_precos(60)
@@ -234,14 +241,55 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
     grafico = gerar_grafico_precos(registros)
     tabela_alertas = gerar_tabela_alertas(alertas)
     resumo_clima = gerar_resumo_clima(dados_clima)
-    resumo_trades = gerar_resumo_trades()
+    resumo_trades = gerar_resumo_trades(usuario_id)
     tabela_stats = gerar_tabela_estatisticas_sinais()
+    tabela_acertos = acertos.resumo_para_dashboard()
+    historico = pegar_estatisticas_historicas()
+
+    def _card_historico(ativo: str, rotulo: str, dados_hist: dict, unidade: str) -> str:
+        if not dados_hist:
+            return ""
+        var = dados_hist.get("variacao_media", 0)
+        pct = dados_hist.get("percentil", 50)
+        atual = dados_hist.get("atual", 0)
+        media = dados_hist.get("media", 0)
+        minimo = dados_hist.get("minimo", 0)
+        maximo = dados_hist.get("maximo", 0)
+        seta = "▲" if var > 0 else "▼"
+        cor = "#e74c3c" if var > 10 else ("#2ecc71" if var < -10 else "#f39c12")
+        largura_barra = 120
+        pos = max(0, min(largura_barra, (atual - minimo) / (maximo - minimo + 0.01) * largura_barra))
+        return f"""
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;flex:1;min-width:200px;">
+            <div style="font-size:12px;color:#888;margin-bottom:6px;">{rotulo} <strong>{unidade}</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <span style="font-size:22px;font-weight:bold;">{atual:.2f}</span>
+                <span style="font-size:13px;color:{cor};font-weight:600;">{seta} {abs(var):.1f}%</span>
+            </div>
+            <div style="font-size:11px;color:#999;margin-top:4px;">Média 10a: {media:.2f} | P{pct}</div>
+            <div style="margin-top:6px;height:6px;background:#eee;border-radius:3px;position:relative;">
+                <div style="position:absolute;left:0;top:0;height:6px;border-radius:3px;background:linear-gradient(90deg,#2ecc71,#f39c12,#e74c3c);width:{largura_barra}px;"></div>
+                <div style="position:absolute;left:{pos}px;top:-3px;width:12px;height:12px;background:#333;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#bbb;margin-top:2px;">
+                <span>{minimo:.1f}</span>
+                <span>{maximo:.1f}</span>
+            </div>
+            <div style="font-size:11px;color:#666;margin-top:6px;">{pct:.0f}% das vezes esteve mais barato</div>
+        </div>"""
+
+    card_cbot = _card_historico("cbot", "🌽 CBOT", historico.get("cbot", {}), "¢/bushel")
+    card_dolar = _card_historico("dolar", "💵 Dólar", historico.get("dolar", {}), "R$/USD")
 
     # Card de destaque
     dolar = dados_precos.get("dolar", "—")
     cbot = dados_precos.get("cbot", "—")
     cepea_milho = dados_cepea.get("milho_cepea", "—")
     cepea_boi = dados_cepea.get("arroba_cepea", "—")
+    fonte_milho = "oficial" if dados_cepea.get("milho_cepea") else "estimado"
+    fonte_boi = "oficial" if dados_cepea.get("arroba_cepea") else "estimado"
+    badge_oficial = '<span style="background:#2e86de;color:white;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:6px;">CEPEA</span>'
+    badge_estimado = '<span style="background:#f39c12;color:white;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:6px;">ESTIMADO</span>'
 
     alerta_count = len(alertas)
     alerta_count_prioritario = len([a for a in alertas if a.get("confianca") == "alta"])
@@ -256,38 +304,54 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Farmer Dashboard — {hoje}</title>
+    <title>AgroSinal — {hoje}</title>
+    <meta name="theme-color" content="#1a472a">
     <style>
         * {{ margin:0; padding:0; box-sizing:border-box; }}
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-               background:#f0f2f5; color:#333; padding:20px; }}
-        .container {{ max-width:1200px; margin:0 auto; }}
+               background:#f0f2f5; color:#333; }}
+        .container {{ max-width:1200px; margin:0 auto; padding:12px; }}
         .header {{ background: linear-gradient(135deg, #1a472a, #2d6a4f);
-                   color:white; padding:25px 30px; border-radius:15px; margin-bottom:20px;
-                   display:flex; justify-content:space-between; align-items:center; }}
-        .header h1 {{ font-size:28px; }}
-        .header span {{ font-size:14px; opacity:0.8; }}
-        .grid {{ display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:15px; margin-bottom:20px; }}
-        .card {{ background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }}
-        .card h3 {{ font-size:14px; color:#888; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }}
-        .card .valor {{ font-size:32px; font-weight:bold; }}
-        .card .variacao {{ font-size:14px; margin-top:4px; }}
-        .card .resumo {{ font-size:13px; color:#666; margin-top:8px; padding-top:8px; border-top:1px solid #eee; }}
+                   color:white; padding:16px 20px; border-radius:12px; margin-bottom:12px;
+                   display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }}
+        .header h1 {{ font-size:20px; }}
+        .header span {{ font-size:12px; opacity:0.8; }}
+        .grid {{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:12px; }}
+        .card {{ background:white; border-radius:10px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,0.06); }}
+        .card h3 {{ font-size:12px; color:#888; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px; }}
+        .card .valor {{ font-size:24px; font-weight:bold; }}
+        .card .variacao {{ font-size:12px; margin-top:3px; }}
+        .card .resumo {{ font-size:12px; color:#666; margin-top:6px; padding-top:6px; border-top:1px solid #eee; }}
         .card-full {{ grid-column: 1 / -1; }}
-        .green {{ color:#2ecc71; }}
-        .red {{ color:#e74c3c; }}
-        .orange {{ color:#f39c12; }}
-        .footer {{ text-align:center; padding:20px; color:#888; font-size:13px; }}
+        .green {{ color:#2ecc71; }} .red {{ color:#e74c3c; }} .orange {{ color:#f39c12; }}
+        .footer {{ text-align:center; padding:16px; color:#888; font-size:12px; }}
+        table {{ width:100%; border-collapse:collapse; font-size:13px; }}
+        th, td {{ padding:8px 6px; text-align:left; border-bottom:1px solid #eee; }}
+        th {{ background:#f5f5f5; font-weight:600; }}
+        .table-wrap {{ overflow-x:auto; -webkit-overflow-scrolling:touch; }}
+        @media(min-width:768px) {{
+            body {{ padding:20px; }}
+            .container {{ padding:0; }}
+            .header {{ padding:25px 30px; }}
+            .header h1 {{ font-size:28px; }}
+            .card {{ padding:20px; }}
+            .card .valor {{ font-size:32px; }}
+            .grid {{ grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:15px; }}
+        }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <div>
-                <h1>🌾 Farmer Dashboard</h1>
-                <span>{hoje} — Coletado automaticamente</span>
+                <h1>🌱 AgroSinal</h1>
+                <span>{hoje}</span>
             </div>
-            <div>{alerta_badge}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                {alerta_badge}
+                <a href="/minha-conta" style="color:white;font-size:13px;text-decoration:none;opacity:.9;">⚙️ Conta</a>
+                <a href="/" style="color:white;font-size:13px;text-decoration:none;opacity:.8;">← Sair</a>
+            </div>
         </div>
 
         <div class="grid">
@@ -304,13 +368,13 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
                 <div class="resumo">CBOT é o preço global do milho — B3 segue</div>
             </div>
             <div class="card">
-                <h3>🌽 Milho CEPEA</h3>
+                <h3>🌽 Milho CEPEA {badge_oficial if fonte_milho == 'oficial' else badge_estimado}</h3>
                 <div class="valor">{'R$ ' + str(cepea_milho) if cepea_milho != '—' else '—'}</div>
                 <div class="variacao orange">Físico (R$/saca)</div>
                 <div class="resumo">{'Indicador ESALQ/B3' if cepea_milho != '—' else 'Indisponível hoje'}</div>
             </div>
             <div class="card">
-                <h3>🐄 Boi CEPEA</h3>
+                <h3>🐄 Boi CEPEA {badge_oficial if fonte_boi == 'oficial' else badge_estimado}</h3>
                 <div class="valor">{'R$ ' + str(cepea_boi) if cepea_boi != '—' else '—'}</div>
                 <div class="variacao green">Físico (R$/@)</div>
                 <div class="resumo">{'Indicador ESALQ/B3' if cepea_boi != '—' else 'Indisponível hoje'}</div>
@@ -320,6 +384,17 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
         <div class="card card-full">
             <h3>📊 Alertas e Sinais do Dia</h3>
             {tabela_alertas}
+        </div>
+
+        <div class="card card-full" style="margin-top:15px;">
+            <h3>📊 Comparativo Histórico (10 anos)</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                {card_cbot}
+                {card_dolar}
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:#888;">
+                O gráfico abaixo mostra onde o preço atual se posiciona na faixa dos últimos 10 anos. Ponto ● = preço atual.
+            </div>
         </div>
 
         <div class="card card-full" style="margin-top:15px;">
@@ -345,8 +420,13 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
             {tabela_stats}
         </div>
 
+        <div class="card card-full" style="margin-top:15px;">
+            <h3>📈 Performance dos Sinais (90 dias)</h3>
+            {tabela_acertos}
+        </div>
+
         <div class="footer">
-            Farmer Dashboard v1.0 — Dados coletados com Scrapling
+            AgroSinal v2.0 — Análise multi-indicador com dados Yahoo Finance + CEPEA + Clima
         </div>
     </div>
 </body>

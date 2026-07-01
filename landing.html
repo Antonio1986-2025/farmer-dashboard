@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgroSinal — Sinais para o Agronegócio</title>
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f7fa;color:#1a1a2e}
+header{background:linear-gradient(135deg,#1a5c2a,#2d8a4e);color:#fff;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:1.5rem;font-weight:800}
+header nav a{color:#fff;text-decoration:none;margin-left:1.5rem;font-weight:600;font-size:.9rem;cursor:pointer}
+header nav a:hover{text-decoration:underline}
+.hero{background:linear-gradient(135deg,#1a5c2a,#2d8a4e 60%,#3cb371);color:#fff;padding:4rem 2rem;text-align:center}
+.hero h2{font-size:2.5rem;font-weight:800;margin-bottom:1rem}
+.hero p{font-size:1.2rem;max-width:600px;margin:0 auto 2rem;opacity:.9}
+.btn{display:inline-block;padding:.8rem 2rem;border-radius:8px;font-weight:700;text-decoration:none;cursor:pointer;border:none;font-size:1rem;transition:transform .2s}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{background:#f5c518;color:#1a1a2e}
+.btn-outline{background:transparent;border:2px solid #fff;color:#fff;margin-left:1rem}
+.section{padding:4rem 2rem;max-width:1000px;margin:0 auto}
+.section h3{font-size:1.8rem;font-weight:700;margin-bottom:2rem;text-align:center}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2rem}
+.plan{background:#fff;border-radius:12px;padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,.08);text-align:center;display:flex;flex-direction:column}
+.plan.featured{border:2px solid #2d8a4e;transform:scale(1.02)}
+.plan h4{font-size:1.3rem;font-weight:700;margin-bottom:.5rem}
+.plan .price{font-size:2.5rem;font-weight:800;color:#1a5c2a;margin:.5rem 0}
+.plan .price small{font-size:1rem;font-weight:400;color:#666}
+.plan ul{list-style:none;padding:0;margin:1.5rem 0;text-align:left;flex:1}
+.plan ul li{padding:.4rem 0;display:flex;align-items:center;gap:.5rem}
+.plan ul li::before{content:"✓";color:#2d8a4e;font-weight:700}
+.plan ul li.nao{opacity:.4}
+.plan ul li.nao::before{content:"✗";color:#999}
+.plan .btn{background:#1a5c2a;color:#fff;margin-top:auto}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem;margin-top:2rem}
+.feature{background:#fff;border-radius:12px;padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,.08);text-align:center}
+.feature h4{font-weight:700;margin-bottom:.5rem;color:#1a5c2a}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);justify-content:center;align-items:center;z-index:1000}
+.modal-overlay.active{display:flex}
+.modal{background:#fff;border-radius:12px;padding:2rem;width:90%;max-width:400px;position:relative}
+.modal h3{font-weight:700;margin-bottom:1.5rem}
+.modal input{width:100%;padding:.8rem;margin-bottom:1rem;border:1px solid #ddd;border-radius:8px;font-size:1rem}
+.modal .btn{width:100%;margin-bottom:.5rem}
+.modal .toggle{text-align:center;margin-top:1rem;font-size:.9rem;color:#666;cursor:pointer}
+.modal .toggle:hover{color:#1a5c2a}
+.modal .close{position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#999}
+.modal .close:hover{color:#333}
+.erro{color:#dc3545;font-size:.85rem;margin-bottom:.5rem;display:none}
+footer{text-align:center;padding:2rem;color:#666;font-size:.85rem}
+@media(max-width:600px){
+header{padding:.8rem 1rem;flex-wrap:wrap;gap:.5rem}
+header h1{font-size:1.2rem}
+header nav a{margin-left:0;margin-right:1rem;font-size:.8rem}
+.hero{padding:2.5rem 1rem}
+.hero h2{font-size:1.5rem}
+.hero p{font-size:1rem;margin-bottom:1.5rem}
+.btn{padding:.7rem 1.5rem;font-size:.9rem;width:100%;margin:.3rem 0}
+.btn-outline{margin-left:0}
+.section{padding:2rem 1rem}
+.section h3{font-size:1.4rem}
+.plans{grid-template-columns:1fr;gap:1rem}
+.plan{padding:1.5rem}
+.plan.featured{transform:none}
+.plan .price{font-size:2rem}
+.features{grid-template-columns:1fr;gap:1rem}
+.modal{padding:1.5rem;width:95%}}
+</style>
+</head><body>
+<header>
+  <h1>🌱 AgroSinal</h1>
+  <nav>
+    <a @click="scrollTo('planos')">Planos</a>
+    <a @click="abrirModal('login')">Entrar</a>
+    <a @click="abrirModal('registro')">Cadastrar</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h2>Sinais inteligentes para o agro</h2>
+  <p>Acompanhe milho, boi gordo, dólar e clima em tempo real. Decisões baseadas em dados para proteger sua margem.</p>
+  <div>
+    <button class="btn btn-primary" @click="abrirModal('registro')">Começar Grátis</button>
+    <a href="/precos" class="btn btn-outline">Ver Preços</a>
+  </div>
+</section>
+
+<section class="section" id="planos">
+  <h3>Planos</h3>
+  <div class="plans">
+    <div class="plan">
+      <h4>Grátis</h4>
+      <div class="price">R$ 0<small>/mês</small></div>
+      <ul>
+        <li>1 ativo monitorado</li>
+        <li>Dashboard web</li>
+        <li class="nao">Alertas WhatsApp</li>
+        <li class="nao">Dados climáticos</li>
+        <li class="nao">Suporte prioritário</li>
+      </ul>
+      <button class="btn" @click="abrirModal('registro')">Cadastrar</button>
+    </div>
+    <div class="plan featured">
+      <h4>Pro</h4>
+      <div class="price">R$ 29,90<small>/mês</small></div>
+      <ul>
+        <li>5 ativos monitorados</li>
+        <li>Dashboard web</li>
+        <li>Alertas WhatsApp</li>
+        <li>Dados climáticos</li>
+        <li class="nao">Suporte prioritário</li>
+      </ul>
+      <button class="btn" @click="abrirModal('registro')">Assinar</button>
+    </div>
+    <div class="plan">
+      <h4>B3</h4>
+      <div class="price">R$ 99,90<small>/mês</small></div>
+      <ul>
+        <li>Ativos ilimitados</li>
+        <li>Dashboard web</li>
+        <li>Alertas WhatsApp</li>
+        <li>Dados climáticos</li>
+        <li>Suporte prioritário</li>
+      </ul>
+      <button class="btn" @click="abrirModal('registro')">Assinar</button>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <h3>Funcionalidades</h3>
+  <div class="features">
+    <div class="feature"><h4>Preços em tempo real</h4><p>Milho B3, boi gordo, dólar, CBOT e indicadores CEPEA atualizados diariamente.</p></div>
+    <div class="feature"><h4>Alertas inteligentes</h4><p>Receba notificações quando a relação boi/milho atingir níveis críticos.</p></div>
+    <div class="feature"><h4>Clima nas regiões</h4><p>Dados das principais regiões produtoras: Sorriso-MT, Campo Grande-MS, Uberaba-MG, Rio Verde-GO.</p></div>
+    <div class="feature"><h4>Gestão de trades</h4><p>Registre entradas e saídas, acompanhe P&L e histórico de acertos.</p></div>
+  </div>
+</section>
+
+<!-- Modal -->
+<div class="modal-overlay" :class="{active:modalAtivo}" @click.self="fecharModal">
+  <div class="modal">
+    <button class="close" @click="fecharModal">&times;</button>
+    <h3 v-if="modo==='login'">Entrar</h3>
+    <h3 v-else>Criar Conta</h3>
+    <div class="erro" v-if="erro">{{erro}}</div>
+    <template v-if="modo==='login'">
+      <input type="email" v-model="email" placeholder="Email" @keyup.enter="login">
+      <input type="password" v-model="senha" placeholder="Senha" @keyup.enter="login">
+      <button class="btn" style="background:#1a5c2a;color:#fff" @click="login">Entrar</button>
+      <div class="toggle" @click="modo='registro'">Não tem conta? Cadastre-se</div>
+    </template>
+    <template v-else>
+      <input type="text" v-model="nome" placeholder="Nome" @keyup.enter="registrar">
+      <input type="email" v-model="email" placeholder="Email" @keyup.enter="registrar">
+      <input type="password" v-model="senha" placeholder="Senha (mín. 6 caracteres)" @keyup.enter="registrar">
+      <button class="btn" style="background:#1a5c2a;color:#fff" @click="registrar">Cadastrar</button>
+      <div class="toggle" @click="modo='login'">Já tem conta? Entre</div>
+    </template>
+  </div>
+</div>
+
+<footer>
+  <p>AgroSinal — Dados para decisões no agronegócio. © 2026</p>
+</footer>
+
+<script>
+const {createApp} = Vue;
+createApp({
+  data(){return{
+    modalAtivo:false, modo:'login',
+    email:'',senha:'',nome:'',erro:''
+  }},
+  methods:{
+    abrirModal(modo){this.modo=modo;this.modalAtivo=true;this.erro=''},
+    fecharModal(){this.modalAtivo=false;this.erro=''},
+    scrollTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'})},
+    async login(){
+      const r = await fetch('/api/auth/login',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:this.email,senha:this.senha})
+      });
+      const d = await r.json();
+      if(!r.ok){this.erro=d.detail;return}
+      localStorage.setItem('token',d.token);
+      window.location.href='/dashboard';
+    },
+    async registrar(){
+      if(this.senha.length<6){this.erro='Senha deve ter no mínimo 6 caracteres';return}
+      const r = await fetch('/api/auth/registrar',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:this.email,nome:this.nome,senha:this.senha})
+      });
+      const d = await r.json();
+      if(!r.ok){this.erro=d.detail;return}
+      localStorage.setItem('token',d.token);
+      window.location.href='/dashboard';
+    }
+  }
+}).mount('body');
+</script>
+</body></html>

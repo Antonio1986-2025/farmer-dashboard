@@ -46,3 +46,23 @@ LIMITE_DOLAR_VARIACAO_ALERTA = 1.0  # % de variação do dólar p/ alertar
 
 # ─── Configurações Railway ──────────────────────────────────
 PORT = int(os.getenv("PORT", "8000"))
+
+# ─── AgroSinal SaaS ────────────────────────────────────────
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError(
+        "Variável de ambiente JWT_SECRET não definida. "
+        "Defina uma chave forte de 32+ caracteres no Railway."
+    )
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRACAO_DIAS = 30
+
+PLANOS = {
+    "gratis": {"nome": "Grátis", "max_ativos": 1, "whatsapp": False, "clima": False, "preco_centavos": 0},
+    "pro": {"nome": "Pro", "max_ativos": 5, "whatsapp": True, "clima": True, "preco_centavos": 2990},
+    "b3": {"nome": "B3", "max_ativos": 99, "whatsapp": True, "clima": True, "preco_centavos": 9990},
+}
+
+STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY", "")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+SITE_URL = os.getenv("SITE_URL", "http://localhost:8000")

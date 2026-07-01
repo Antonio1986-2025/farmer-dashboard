@@ -7,3 +7,19 @@ env/
 venv/
 .env
 dashboard/index.html
+
+# Áudio e mídia
+*.mp3
+*.wav
+*.ogg
+*.flac
+
+# Temporários de teste
+texto_audiobook.txt
+audiobook_text.txt
+gerar_com_voz.py
+OmniVoice-Studio/
+OmniVoice.msi
+
+# Antigo requirements (substituído por requisicoes.txt)
+requirements.txt

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Conta — AgroSinal</title>
+    <meta name="theme-color" content="#1a472a">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+               background:#f0f2f5; color:#333; min-height:100vh; }
+        .container { max-width:720px; margin:0 auto; padding:12px; }
+        .header { background: linear-gradient(135deg, #1a472a, #2d6a4f);
+                   color:white; padding:16px 20px; border-radius:12px; margin-bottom:12px;
+                   display:flex; justify-content:space-between; align-items:center; }
+        .header h1 { font-size:20px; }
+        .header a { color:rgba(255,255,255,.8); font-size:13px; text-decoration:none; }
+        .card { background:white; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+        .card h2 { font-size:15px; margin-bottom:12px; color:#1a472a; }
+        .campo { margin-bottom:12px; }
+        .campo label { display:block; font-size:12px; color:#888; margin-bottom:4px; }
+        .campo input, .campo select { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:14px; outline:none; }
+        .campo input:focus { border-color:#2d6a4f; }
+        .campo .dica { font-size:11px; color:#999; margin-top:4px; }
+        .btn { padding:10px 20px; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600; }
+        .btn-primary { background:#2d6a4f; color:white; }
+        .btn-primary:hover { background:#1a472a; }
+        .btn-secondary { background:#e8e8e8; color:#333; }
+        .btn-secondary:hover { background:#ddd; }
+        .btn-sm { padding:6px 14px; font-size:12px; }
+        .flex { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .status { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; }
+        .status-online { background:#d4edda; color:#155724; }
+        .status-offline { background:#f8d7da; color:#721c24; }
+        .status-na { background:#e8e8e8; color:#888; }
+        .qr-box { background:#f9f9f9; border:2px dashed #ddd; border-radius:12px; padding:20px; text-align:center; margin:12px 0; }
+        .qr-box img { max-width:220px; }
+        .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); padding:12px 24px; border-radius:8px; color:white; font-size:14px; z-index:999; opacity:0; transition:opacity .3s; }
+        .toast.show { opacity:1; }
+        .toast-sucesso { background:#2d6a4f; }
+        .toast-erro { background:#e74c3c; }
+        .badge-plano { display:inline-block; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; color:white; }
+        .badge-gratis { background:#888; }
+        .badge-pro { background:#f39c12; }
+        .badge-b3 { background:#2e86de; }
+        .info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0; font-size:13px; }
+        .info-row:last-child { border-bottom:none; }
+        .info-label { color:#888; }
+        .info-value { font-weight:600; }
+        @media(min-width:768px) {
+            body { padding:20px; }
+            .container { padding:0; }
+            .header h1 { font-size:24px; }
+            .card { padding:20px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <div class="header">
+                <h1>👤 {{ dados.nome || 'Minha Conta' }}</h1>
+                <a href="/dashboard">← Dashboard</a>
+            </div>
+
+            <!-- Dados Pessoais -->
+            <div class="card">
+                <h2>📋 Dados da Conta</h2>
+                <div class="info-row"><span class="info-label">Nome</span><span class="info-value">{{ dados.nome }}</span></div>
+                <div class="info-row"><span class="info-label">Email</span><span class="info-value">{{ dados.email }}</span></div>
+                <div class="info-row">
+                    <span class="info-label">Plano</span>
+                    <span class="info-value">
+                        <span :class="'badge-plano badge-' + dados.plano">{{ planoNome }}</span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Alertas WhatsApp</span>
+                    <span class="info-value">
+                        <span v-if="dados.limites && dados.limites.whatsapp" style="color:#2ecc71;">✅ Disponível</span>
+                        <span v-else style="color:#888;">❌ Apenas no plano Pro</span>
+                    </span>
+                </div>
+                <div style="margin-top:12px;">
+                    <button class="btn btn-secondary btn-sm" @click="alterarSenha">🔑 Alterar senha</button>
+                </div>
+            </div>
+
+            <!-- WhatsApp -->
+            <div class="card">
+                <h2>📱 Conexão WhatsApp</h2>
+                <p style="font-size:13px;color:#666;margin-bottom:12px;">
+                    Receba alertas de preços e sinais diretamente no seu WhatsApp.
+                    <span v-if="dados.limites && !dados.limites.whatsapp" style="color:#f39c12;">
+                        (Disponível nos planos Pro e B3)
+                    </span>
+                </p>
+
+                <!-- Status do Gateway (APENAS ADMIN) -->
+                <div v-if="isAdmin" class="flex" style="margin-bottom:12px;">
+                    <span style="font-size:13px;color:#666;">Gateway WhatsApp:</span>
+                    <span :class="'status ' + statusGateway">{{ statusGatewayTexto }}</span>
+                </div>
+
+                <!-- QR Code (APENAS ADMIN quando desconectado) -->
+                <div v-if="isAdmin && qrUrl" class="qr-box">
+                    <p style="font-size:13px;color:#666;margin-bottom:10px;">
+                        📷 O gateway WhatsApp ainda não foi conectado.
+                    </p>
+                    <a :href="qrUrl" target="_blank" class="btn btn-primary">
+                        🔗 Abrir Painel para Conectar
+                    </a>
+                    <p style="font-size:12px;color:#999;margin-top:8px;">
+                        1. Abra o painel do WhatsApp Gateway<br>
+                        2. Clique na sessão <strong>farmer</strong><br>
+                        3. Escaneie o QR Code com seu WhatsApp<br>
+                        4. Volte aqui e clique em "Atualizar Status"
+                    </p>
+                    <div style="margin-top:8px;">
+                        <button class="btn btn-sm btn-secondary" @click="atualizarStatus">↻ Já Conectei! Verificar</button>
+                    </div>
+                </div>
+
+                <!-- Para usuários comuns: aviso simples -->
+                <div v-if="!isAdmin && statusGateway === 'online'" style="margin-bottom:12px;padding:10px;background:#d4edda;border-radius:8px;font-size:13px;color:#155724;">
+                    ✅ WhatsApp conectado! Cadastre seu número abaixo para receber alertas.
+                </div>
+
+                <!-- Número do usuário -->
+                <div class="campo">
+                    <label>Seu número de WhatsApp (para receber alertas)</label>
+                    <input type="tel" v-model="numeroInput" placeholder="5511999999999" maxlength="13">
+                    <div class="dica">Código do país + DDD + número. Ex: 5511999999999</div>
+                </div>
+                <div v-if="!isAdmin && dados.limites && !dados.limites.whatsapp" style="font-size:11px;color:#f39c12;margin-top:4px;">
+                    ⚠️ Alertas WhatsApp disponíveis nos planos Pro (R$ 29,90/mês) e B3 (R$ 99,90/mês)
+                </div>
+                <div class="flex">
+                    <button class="btn btn-primary btn-sm" @click="salvarNumero" :disabled="salvando">
+                        {{ salvando ? 'Salvando...' : '💾 Salvar Número' }}
+                    </button>
+                    <button class="btn btn-secondary btn-sm" @click="testarConexao" :disabled="!numeroSalvo || testando">
+                        {{ testando ? 'Enviando...' : '📨 Testar Mensagem' }}
+                    </button>
+                </div>
+                <div v-if="ultimoTeste" style="margin-top:8px;font-size:13px;" :style="{color: ultimoTesteStatus}">
+                    {{ ultimoTeste }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div :class="'toast ' + toastClass" :class="{show: toastAtivo}">{{ toastMsg }}</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+    const { createApp, ref, onMounted, computed } = Vue;
+    createApp({
+        setup() {
+            const dados = ref({nome:'', email:'', plano:'gratis', limites:{}});
+            const numeroInput = ref('');
+            const numeroSalvo = ref('');
+            const qrUrl = ref(null);
+            const statusGateway = ref('na');
+            const salvando = ref(false);
+            const testando = ref(false);
+            const ultimoTeste = ref('');
+            const ultimoTesteStatus = ref('#2ecc71');
+            const toastMsg = ref('');
+            const toastAtivo = ref(false);
+            const toastClass = ref('toast-sucesso');
+
+            const planoNome = computed(() => {
+                const nomes = { gratis:'Grátis', pro:'Pro', b3:'B3' };
+                return nomes[dados.value.plano] || dados.value.plano;
+            });
+
+            const isAdmin = computed(() => dados.value.plano === 'admin');
+
+            const statusGatewayTexto = computed(() => {
+                const map = { online: '🟢 Conectado', offline: '🔴 Desconectado', na: '⚪ Não configurado' };
+                return map[statusGateway.value] || '⚪ Indisponível';
+            });
+
+            function mostrarToast(msg, tipo = 'sucesso') {
+                toastMsg.value = msg;
+                toastClass.value = tipo === 'sucesso' ? 'toast-sucesso' : 'toast-erro';
+                toastAtivo.value = true;
+                setTimeout(() => toastAtivo.value = false, 3000);
+            }
+
+            async function carregarPerfil() {
+                try {
+                    const r = await fetch('/api/auth/perfil');
+                    if (!r.ok) { window.location.href = '/'; return; }
+                    dados.value = await r.json();
+                    numeroInput.value = dados.value.whatsapp || '';
+                    numeroSalvo.value = dados.value.whatsapp || '';
+                } catch { window.location.href = '/'; }
+            }
+
+            async function atualizarStatus() {
+                try {
+                    const r = await fetch('/api/auth/whatsapp/status');
+                    const data = await r.json();
+                    if (data.conectado)                     statusGateway.value = 'online';
+                    else if (data.erro) statusGateway.value = 'na';
+                    else statusGateway.value = 'offline';
+                    qrUrl.value = data.qr_url || null;
+                    if (data.numero && !numeroInput.value) {
+                        numeroInput.value = data.numero;
+                        numeroSalvo.value = data.numero;
+                    }
+                } catch { statusGateway.value = 'na'; }
+            }
+
+            async function salvarNumero() {
+                if (!numeroInput.value.trim()) {
+                    mostrarToast('Digite um número', 'erro');
+                    return;
+                }
+                salvando.value = true;
+                try {
+                    const r = await fetch('/api/auth/whatsapp', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ numero: numeroInput.value })
+                    });
+                    if (r.ok) {
+                        numeroSalvo.value = numeroInput.value;
+                        mostrarToast('✅ Número salvo com sucesso!');
+                    } else {
+                        const err = await r.json();
+                        mostrarToast(err.detail || 'Erro ao salvar', 'erro');
+                    }
+                } catch { mostrarToast('Erro de conexão', 'erro'); }
+                salvando.value = false;
+            }
+
+            async function testarConexao() {
+                testando.value = true;
+                ultimoTeste.value = '';
+                try {
+                    const r = await fetch('/api/auth/whatsapp/testar', { method: 'POST' });
+                    const data = await r.json();
+                    if (data.status === 'ok') {
+                        ultimoTeste.value = '✅ Mensagem teste enviada! Verifique seu WhatsApp.';
+                        ultimoTesteStatus.value = '#2ecc71';
+                    } else {
+                        ultimoTeste.value = '❌ Não foi possível enviar. Gateway offline?';
+                        ultimoTesteStatus.value = '#e74c3c';
+                    }
+                } catch {
+                    ultimoTeste.value = '❌ Erro de conexão';
+                    ultimoTesteStatus.value = '#e74c3c';
+                }
+                testando.value = false;
+            }
+
+            async function alterarSenha() {
+                const nova = prompt('Digite a nova senha (mínimo 6 caracteres):');
+                if (!nova || nova.length < 6) return;
+                try {
+                    const r = await fetch('/api/auth/alterar-senha', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ senha: nova })
+                    });
+                    if (r.ok) mostrarToast('✅ Senha alterada!');
+                    else mostrarToast('Erro ao alterar senha', 'erro');
+                } catch { mostrarToast('Erro de conexão', 'erro'); }
+            }
+
+            onMounted(async () => {
+                await carregarPerfil();
+                await atualizarStatus();
+            });
+
+            return { dados, numeroInput, numeroSalvo, qrUrl, statusGateway, salvando, testando,
+                     ultimoTeste, ultimoTesteStatus, planoNome, statusGatewayTexto, isAdmin,
+                     toastMsg, toastAtivo, toastClass,
+                     salvarNumero, testarConexao, atualizarStatus, alterarSenha };
+        }
+    }).mount('#app');
+    </script>
+</body>
+</html>

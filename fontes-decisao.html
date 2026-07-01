@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>AgroSinal — Como Funciona</title>
+    <style>
+        @page { margin: 2cm 1.5cm; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Helvetica Neue',Arial,sans-serif; color:#222; line-height:1.7; font-size:11pt; }
+        .page { max-width:700px; margin:0 auto; padding:20px; }
+
+        h1 { font-size:24pt; color:#1a472a; margin-bottom:4px; }
+        h2 { font-size:15pt; color:#1a472a; margin:30px 0 6px; }
+        h3 { font-size:12pt; color:#2d6a4f; margin:20px 0 4px; }
+        p  { margin-bottom:10px; text-align:justify; }
+
+        .capa { text-align:center; padding:100px 0 60px; }
+        .capa h1 { font-size:32pt; }
+        .capa .sub { font-size:14pt; color:#555; margin-top:8px; }
+        .capa .selo { display:inline-block; background:#1a472a; color:#fff; padding:8px 30px; border-radius:30px; font-size:11pt; margin-top:20px; }
+
+        .box { background:#f4faf4; border-radius:8px; padding:16px 20px; margin:14px 0; }
+        .box p { margin:0; }
+        .box strong { color:#1a472a; }
+
+        table { width:100%; border-collapse:collapse; margin:12px 0; font-size:10pt; }
+        th { background:#1a472a; color:#fff; padding:8px 10px; text-align:left; }
+        td { padding:7px 10px; border-bottom:1px solid #ddd; }
+
+        ul { margin:6px 0 10px 18px; }
+        li { margin-bottom:6px; }
+        .tag { display:inline-block; background:#2d6a4f; color:#fff; padding:1px 10px; border-radius:12px; font-size:8pt; font-weight:600; }
+
+        .footer { margin-top:40px; padding-top:15px; border-top:1px solid #ddd; text-align:center; font-size:9pt; color:#888; }
+
+        .pingo { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+        .pingo.verde { background:#22c55e; }
+        .pingo.azul  { background:#2e86de; }
+        .pingo.laranja { background:#f39c12; }
+
+        @media print {
+            body { font-size:10pt; }
+            .page { padding:0; }
+            .capa { padding:60px 0 40px; }
+            h2 { page-break-after:avoid; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <!-- CAPA -->
+    <div class="capa">
+        <div style="font-size:56pt;margin-bottom:10px;">🌱</div>
+        <h1>AgroSinal</h1>
+        <div class="sub">Seu alerta inteligente de mercado, direto no WhatsApp</div>
+        <div class="selo">Milho · Boi Gordo · Relação Boi/Milho</div>
+    </div>
+
+    <!-- O QUE É -->
+    <h2>O que é o AgroSinal?</h2>
+    <p>
+        O AgroSinal é um sistema que <strong>acompanha o mercado todo dia por você</strong>.
+        Ele junta informações oficiais de várias fontes, analisa tudo de uma vez e, quando
+        identifica uma oportunidade, manda um aviso direto no seu WhatsApp.
+    </p>
+    <div class="box">
+        <p><strong>➡️ Você não precisa perder tempo olhando gráfico, site de notícia ou planilha.</strong>
+        O AgroSinal faz o trabalho pesado e te entrega a resposta pronta: <em>"Hora de comprar",
+        "Hora de vender" ou "Atenção — mercado mexendo".</em></p>
+    </div>
+
+    <!-- COMO FUNCIONA -->
+    <h2>Como funciona?</h2>
+    <p>Todo dia útil, o AgroSinal executa 3 passos automaticamente:</p>
+
+    <table>
+        <tr><th style="width:60px;">Passo</th><th>O que acontece</th><th>Quanto leva</th></tr>
+        <tr><td><strong>1️⃣</strong></td>
+            <td><strong>Coleta os preços</strong> — busca o preço do milho e do boi gordo em fontes oficiais (CEPEA, bolsa de Chicago, dólar) e também vê o clima nas principais regiões produtoras</td>
+            <td>30 seg</td></tr>
+        <tr><td><strong>2️⃣</strong></td>
+            <td><strong>Analisa os dados</strong> — compara os preços de hoje com os dias anteriores, verifica se o mercado está calmo ou agitado, e checa se a época do ano favorece alta ou baixa</td>
+            <td>2 seg</td></tr>
+        <tr><td><strong>3️⃣</strong></td>
+            <td><strong>Gera o alerta</strong> — se identificou uma oportunidade clara, monta uma mensagem simples e manda para o seu WhatsApp</td>
+            <td>1 seg</td></tr>
+    </table>
+
+    <div class="box" style="background:#e8f5e9;">
+        <p style="text-align:center;font-size:11pt;"><strong>⌛ Tudo isso em menos de 1 minuto — e você só precisa ler a mensagem.</strong></p>
+    </div>
+
+    <!-- FONTES -->
+    <h2>De onde vêm os dados?</h2>
+    <p>Usamos <strong>6 fontes de informação</strong>, todas públicas e reconhecidas no mercado:</p>
+
+    <table>
+        <tr><th>Fonte</th><th>O que fornece</th></tr>
+        <tr><td><span class="pingo verde"></span><strong>CEPEA</strong> (ESALQ/USP)</td>
+            <td>Preço oficial do milho (R$/saca) e do boi gordo (R$/arroba) — referência nacional</td></tr>
+        <tr><td><span class="pingo azul"></span><strong>CBOT</strong> (Bolsa de Chicago)</td>
+            <td>Preço internacional do milho — referência global que influencia o mercado brasileiro</td></tr>
+        <tr><td><span class="pingo laranja"></span><strong>Dólar comercial</strong></td>
+            <td>Cotação do dólar — influencia diretamente exportação e preços internos</td></tr>
+        <tr><td><span class="pingo verde"></span><strong>Clima</strong> (OpenWeatherMap)</td>
+            <td>Temperatura e chuva nas 4 principais regiões produtoras (MT, MS, MG, GO)</td></tr>
+        <tr><td><span class="pingo azul"></span><strong>Histórico de preços</strong></td>
+            <td>Últimos 30 dias — para comparar e identificar tendências</td></tr>
+        <tr><td><span class="pingo laranja"></span><strong>Calendário agrícola</strong></td>
+            <td>Safra, safrinha, entressafra — cada época do ano tem um comportamento típico</td></tr>
+    </table>
+
+    <!-- O QUE VOCÊ RECEBE -->
+    <h2>O que você recebe no WhatsApp?</h2>
+    <p>Mensagens curtas e diretas, como estas:</p>
+
+    <div class="box">
+        <p><strong>🌽 MILHO — SINAL DE ATENÇÃO</strong><br>
+        Preço: R$ 63,45/saca<br>
+        📉 Mercado em baixa — pico da safrinha, pressão nos preços<br>
+        ⏳ Confiança: <span style="color:#e74c3c;">Alta 🔴🔴</span><br>
+        📊 CBOT convertido: R$ 42,80/saca (referência internacional)</p>
+    </div>
+
+    <div class="box">
+        <p><strong>🐄 BOI GORDO — SINAL DE OPORTUNIDADE</strong><br>
+        Preço: R$ 338,65/@<br>
+        📈 Mercado em alta — entressafra, oferta reduzida<br>
+        ⏳ Confiança: <span style="color:#f39c12;">Média 🟡</span><br>
+        📊 Relação Boi/Milho: 5,3 sacas/@ — favorável para confinar</p>
+    </div>
+
+    <p style="font-size:10pt;color:#666;font-style:italic;">
+        Cada mensagem mostra o valor atual, a direção do mercado e o nível de confiança.
+        Você decide se vai agir ou não.
+    </p>
+
+    <!-- RELAÇÃO BOI/MILHO -->
+    <h3>📊 Relação Boi/Milho (exclusivo AgroSinal)</h3>
+    <p>
+        Um diferencial importante: o AgroSinal calcula quantas sacas de milho são necessárias
+        para comprar uma arroba de boi. Isso ajuda o pecuarista a saber se <strong>vale a pena
+        confinar</strong> naquele momento.
+    </p>
+
+    <table>
+        <tr><th>Relação</th><th>O que significa</th></tr>
+        <tr><td>≥ 5,5</td><td>🟢 Excelente para confinar — milho barato, boi caro</td></tr>
+        <tr><td>4,0 a 5,4</td><td>🟡 Favorável — acima da média histórica</td></tr>
+        <tr><td>< 3,5</td><td>🔴 Crítico — milho caro, confinamento arriscado</td></tr>
+    </table>
+
+    <!-- CONFIABILIDADE -->
+    <h2>Por que confiar?</h2>
+    <ul>
+        <li><strong>Fontes oficiais</strong> — CEPEA/ESALQ é referência nacional, CBOT é referência global, Yahoo Finance é usado por bancos e corretoras</li>
+        <li><strong>Método testado</strong> — os indicadores usados (médias, tendências, comparações) são os mesmos que analistas de mercado usam, só que automatizados</li>
+        <li><strong>Acurácia monitorada</strong> — o sistema registra cada alerta emitido e acompanha se o mercado confirmou ou não. Você vê a taxa de acerto no próprio sistema</li>
+        <li><strong>Sem achismo</strong> — cada alerta é gerado por uma combinação de fatores objetivos, não por opinião ou palpites</li>
+    </ul>
+
+    <!-- PREÇO -->
+    <h2>Quanto custa?</h2>
+
+    <table>
+        <tr><th>Plano</th><th>Preço</th><th>O que inclui</th></tr>
+        <tr><td><strong>Grátis</strong></td><td>R$ 0</td><td>Dashboard com preços do dia · Indicadores técnicos · Sinais no sistema</td></tr>
+        <tr><td><strong>Pro</strong></td><td>R$ 29,90/mês</td><td>Tudo do Grátis + Alertas no WhatsApp + Relação Boi/Milho + Sazonalidade</td></tr>
+        <tr><td><strong>B3</strong></td><td>R$ 99,90/mês</td><td>Tudo do Pro + Sinais combinados + Histórico completo + Prioridade no suporte</td></tr>
+    </table>
+
+    <div class="box" style="text-align:center;background:#1a472a;color:#fff;border-radius:8px;">
+        <p style="color:#fff;font-size:11pt;margin:0;">
+            <strong>🌱 Resumo:</strong> O AgroSinal é como ter um analista de mercado
+            trabalhando <strong>só para você</strong>, todo dia, de graça ou por menos de R$ 1 por dia.
+        </p>
+    </div>
+
+    <div class="footer">
+        <p><strong>AgroSinal v2.0</strong> · Junho de 2026</p>
+        <p id="url-site"></p>
+    <script>document.getElementById('url-site').textContent = window.location.origin;</script>
+    </div>
+
+</div>
+</body>
+</html>

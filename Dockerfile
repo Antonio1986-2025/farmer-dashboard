@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Instala dependências do Playwright
+# Instala dependências do sistema (Chromium + fonts)
 RUN apt-get update && apt-get install -y \
     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libdbus-1-3 libxcb1 libxkbcommon0 \
@@ -16,9 +16,9 @@ COPY requisicoes.txt .
 RUN pip install --no-cache-dir -r requisicoes.txt && \
     pip install --no-cache-dir fastapi uvicorn
 
-# Instala Playwright browsers
-RUN python -m playwright install chromium
-RUN python -m playwright install-deps chromium
+# Instala Chromium para bypass Cloudflare
+RUN python -m playwright install chromium && \
+    python -m playwright install-deps chromium
 
 # Código do app
 COPY . .

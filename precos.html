@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preços — AgroSinal</title>
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f5f7fa;color:#1a1a2e}
+header{background:linear-gradient(135deg,#1a5c2a,#2d8a4e);color:#fff;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:1.5rem;font-weight:800}
+header nav a{color:#fff;text-decoration:none;margin-left:1.5rem;font-weight:600;font-size:.9rem}
+header nav a:hover{text-decoration:underline}
+.container{max-width:900px;margin:2rem auto;padding:0 1rem}
+.card{background:#fff;border-radius:12px;padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,.08);margin-bottom:1.5rem}
+.card h3{font-size:1.3rem;font-weight:700;margin-bottom:1rem;color:#1a5c2a}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}
+.item{background:#f8fafc;border-radius:8px;padding:1.2rem;text-align:center}
+.item .label{font-size:.8rem;color:#666;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.5px}
+.item .value{font-size:1.8rem;font-weight:800;color:#1a1a2e}
+.item .change{font-size:.85rem;margin-top:.3rem}
+.item .up{color:#2d8a4e}
+.item .down{color:#dc3545}
+.alertas{list-style:none}
+.alertas li{padding:.8rem;border-left:4px solid;margin-bottom:.5rem;background:#f8fafc;border-radius:0 8px 8px 0}
+.alertas .alta{border-color:#2d8a4e}
+.alertas .media{border-color:#f5c518}
+.alertas .baixa{border-color:#dc3545}
+.alertas .tipo{font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px}
+.alertas .explicacao{font-size:.9rem;margin-top:.3rem;color:#444}
+.alertas .meta{font-size:.8rem;color:#666;margin-top:.2rem}
+.loading{text-align:center;padding:3rem;color:#666}
+.recarga{text-align:right;margin-bottom:.5rem}
+.recarga button{background:#1a5c2a;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer;font-size:.85rem}
+.recarga button:disabled{opacity:.5;cursor:not-allowed}
+footer{text-align:center;padding:2rem;color:#666;font-size:.85rem}
+@media(max-width:600px){
+header{padding:.8rem 1rem}
+header h1{font-size:1.2rem}
+header nav a{margin-left:0;margin-right:1rem;font-size:.8rem}
+.container{margin:1rem auto}
+.card{padding:1.2rem}
+.card h3{font-size:1.1rem}
+.grid{grid-template-columns:repeat(2,1fr);gap:.6rem}
+.item{padding:.8rem}
+.item .value{font-size:1.3rem}
+.recarga button{width:100%;padding:.7rem}}
+</style>
+</head><body>
+<header>
+  <h1>🌱 AgroSinal</h1>
+  <nav>
+    <a href="/">Início</a>
+    <a href="/dashboard">Dashboard</a>
+  </nav>
+</header>
+<div class="container" id="app">
+  <div class="recarga">
+    <button @click="recarregar" :disabled="carregando">{{carregando?'Atualizando...':'Recarregar Dados'}}</button>
+  </div>
+  <div class="card">
+    <h3>Preços do Dia — {{data || '...'}}</h3>
+    <div class="grid">
+      <div class="item"><div class="label">Dólar</div><div class="value">{{precos.dolar ? 'R$ '+precos.dolar : '—'}}</div></div>
+      <div class="item"><div class="label">CBOT (milho)</div><div class="value">{{precos.cbot ? 'US$ '+precos.cbot : '—'}}</div></div>
+      <div class="item"><div class="label">Milho B3</div><div class="value">{{precos.milho_b3 ? 'R$ '+precos.milho_b3 : '—'}}</div></div>
+      <div class="item"><div class="label">Boi Gordo B3</div><div class="value">{{precos.boi_b3 ? 'R$ '+precos.boi_b3 : '—'}}</div></div>
+      <div class="item"><div class="label">Milho CEPEA</div><div class="value">{{precos.milho_cepea ? 'R$ '+precos.milho_cepea : '—'}}</div></div>
+      <div class="item"><div class="label">Arroba CEPEA</div><div class="value">{{precos.arroba_cepea ? 'R$ '+precos.arroba_cepea : '—'}}</div></div>
+      <div class="item"><div class="label">Relação Boi/Milho</div><div class="value">{{precos.relacao_boi_milho || '—'}}</div></div>
+    </div>
+  </div>
+  <div class="card" v-if="clima.length">
+    <h3>🌤 Clima nas Regiões</h3>
+    <div class="grid">
+      <div class="item" v-for="c in clima" :key="c.regiao">
+        <div class="label">{{c.regiao}}</div>
+        <div class="value" style="font-size:1.4rem">{{c.temp}}°C</div>
+        <div style="font-size:.85rem;color:#666">{{c.chuva}} mm</div>
+      </div>
+    </div>
+  </div>
+  <div class="card" v-if="alertas.length">
+    <h3>🔔 Alertas</h3>
+    <ul class="alertas">
+      <li v-for="a in alertas" :class="a.confianca">
+        <div class="tipo">{{a.tipo}} — {{a.direcao}}</div>
+        <div class="explicacao">{{a.explicacao}}</div>
+        <div class="meta" v-if="a.valor">Alvo: R$ {{a.valor}} | Prazo: {{a.prazo || 'n/d'}}</div>
+      </li>
+    </ul>
+  </div>
+  <div class="loading" v-if="!data && !carregando">Nenhum dado disponível ainda.</div>
+</div>
+<footer>AgroSinal — Dados para decisões no agronegócio. © 2026</footer>
+<script>
+const {createApp} = Vue;
+createApp({
+  data(){return{
+    data:'',precos:{},clima:[],alertas:[],carregando:false
+  }},
+  methods:{
+    async carregar(){
+      this.carregando=true;
+      try{
+        const r=await fetch('/api/dados');
+        const d=await r.json();
+        this.data=d.data;this.precos=d.precos||{};this.clima=d.clima||[];this.alertas=d.alertas||[];
+      }catch(e){}
+      this.carregando=false;
+    },
+    recarregar(){
+      fetch('/api/coletar',{method:'POST'}).then(()=>this.carregar()).catch(()=>{});
+    }
+  },
+  mounted(){this.carregar()}
+}).mount('#app');
+</script>
+</body></html>
