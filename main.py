@@ -50,7 +50,7 @@ async def coletar_tudo() -> tuple:
         cbot=precos_futuros.get("cbot"),
         dolar=precos_futuros.get("dolar"),
         milho_cepea=cepea_dados.get("milho_cepea"),
-        arroba_cepea=arroba_usar,
+        arroba_cepea=arroba_usar or cepea_dados.get("arroba_cepea"),
     )
 
     for c in clima_dados:

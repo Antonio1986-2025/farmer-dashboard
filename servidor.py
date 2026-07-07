@@ -87,7 +87,7 @@ async def coleta_completa() -> dict:
         cbot=dados_precos.get("cbot_brl") or dados_precos.get("cbot"),
         dolar=dados_precos.get("dolar"),
         milho_cepea=fisicos_dados.get("milho_cepea") or cepea_dados.get("milho_cepea"),
-        arroba_cepea=fisicos_dados.get("arroba_cepea") or cepea_dados.get("arroba_cepea"),
+        arroba_cepea=media_nacional or fisicos_dados.get("arroba_cepea") or cepea_dados.get("arroba_cepea"),
     )
     for c in clima_dados:
         banco.salvar_clima(c["regiao"], c["temperatura"], c["chuva_mm"], c["umidade"])
@@ -306,7 +306,7 @@ async def api_dados():
             "milho_b3": ultimo[2] if ultimo else None,
             "boi_b3": ultimo[3] if ultimo else None,
             "milho_cepea": ultimo[6] if ultimo else None,
-            "arroba_cepea": ultimo[7] if ultimo else None,
+            "arroba_cepea": datagro_cache.get("_media_nacional") if datagro_cache else (ultimo[7] if ultimo else None),
             "relacao_boi_milho": ultimo[8] if ultimo else None,
             "fonte_milho": fonte_milho,
             "fonte_boi": fonte_boi,
@@ -397,8 +397,13 @@ async def _background_startup():
         await asyncio.to_thread(carregar_historico_startup)
     except Exception as e:
         print(f"  ⚠️ Histórico inicial: {e}")
+    # Coleta dados na inicialização
     try:
-        await coleta_completa()
-        startup_ok = True
-    except Exception:
-        pass
+        print("  📡 Coletando dados na inicialização...")
+        await asyncio.wait_for(coleta_completa(), timeout=120)
+        print(f"  ✅ Coleta inicial concluída: {len(cache['alertas'])} alertas")
+    except asyncio.TimeoutError:
+        print("  ⏰ Coleta inicial excedeu tempo limite")
+    except Exception as e:
+        print(f"  ⚠️ Coleta inicial: {e}")
+    startup_ok = True
