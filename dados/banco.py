@@ -89,6 +89,21 @@ def criar_tabelas():
             CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
             CREATE INDEX IF NOT EXISTS idx_precos_data ON precos_diarios(data);
 
+            CREATE TABLE IF NOT EXISTS precos_datagro (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                produto TEXT DEFAULT 'boi',
+                preco REAL,
+                variacao REAL,
+                maxima REAL,
+                minima REAL,
+                nome TEXT,
+                UNIQUE(data, estado, produto)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_datagro_data ON precos_datagro(data);
+
             CREATE TABLE IF NOT EXISTS precos_yahoo (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ticker TEXT NOT NULL,
@@ -241,6 +256,101 @@ def pegar_ultimo_preco():
         return conn.execute("""
             SELECT * FROM precos_diarios ORDER BY data DESC LIMIT 1
         """).fetchone()
+
+
+# ─── DATAGRO ─────────────────────────────────────────────────
+
+ESTADOS_BOI = ["SP", "GO", "MG", "MS", "MT", "PA", "RO", "TO", "BA"]
+
+
+def salvar_precos_datagro(dados_boi: dict, produto: str = "boi"):
+    """Salva preços DATAGRO no banco.
+
+    Args:
+        dados_boi: dict {estado: {preco, variacao, data, maxima, minima, nome}}
+        produto: 'boi', 'vaca' ou 'novilha'
+    """
+    if not dados_boi:
+        return
+    conn = conectar()
+    data_ref = dados_boi.get("_data", str(date.today()))
+    for estado in ESTADOS_BOI:
+        d = dados_boi.get(estado)
+        if not d or not d.get("preco"):
+            continue
+        conn.execute("""
+            INSERT OR REPLACE INTO precos_datagro
+                (data, estado, produto, preco, variacao, maxima, minima, nome)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data_ref,
+            estado,
+            produto,
+            d["preco"],
+            d.get("variacao"),
+            d.get("maxima"),
+            d.get("minima"),
+            d.get("nome", f"{produto.upper()} {estado}"),
+        ))
+    conn.commit()
+
+
+def pegar_precos_datagro_hoje(produto: str = "boi") -> dict:
+    """Retorna preços DATAGRO de hoje para um produto.
+
+    Returns:
+        dict {estado: {preco, variacao, maxima, minima, nome}} ou dict vazio.
+    """
+    with conectar() as conn:
+        hoje = str(date.today())
+        rows = conn.execute("""
+            SELECT estado, preco, variacao, maxima, minima, nome
+            FROM precos_datagro
+            WHERE data = ? AND produto = ?
+        """, (hoje, produto)).fetchall()
+        resultado = {}
+        for r in rows:
+            resultado[r[0]] = {
+                "preco": r[1],
+                "variacao": r[2],
+                "maxima": r[3],
+                "minima": r[4],
+                "nome": r[5],
+            }
+        return resultado
+
+
+def pegar_serie_datagro(estado: str, dias: int = 60, produto: str = "boi") -> list[dict]:
+    """Retorna série histórica de um estado para gráficos."""
+    with conectar() as conn:
+        rows = conn.execute("""
+            SELECT data, preco, variacao
+            FROM precos_datagro
+            WHERE estado = ? AND produto = ? AND preco IS NOT NULL
+            ORDER BY data ASC
+            LIMIT ?
+        """, (estado, produto, dias)).fetchall()
+        return [
+            {"data": r[0], "preco": r[1], "variacao": r[2]}
+            for r in rows
+        ]
+
+
+def pegar_media_nacional_datagro(dias: int = 1, produto: str = "boi") -> float | None:
+    """Calcula média nacional dos preços DATAGRO."""
+    with conectar() as conn:
+        limite = str(date.today()) if dias == 1 else None
+        if limite:
+            row = conn.execute("""
+                SELECT AVG(preco) FROM precos_datagro
+                WHERE data = ? AND produto = ? AND preco IS NOT NULL
+            """, (limite, produto)).fetchone()
+        else:
+            row = conn.execute("""
+                SELECT AVG(preco) FROM precos_datagro
+                WHERE produto = ? AND preco IS NOT NULL
+            """, (produto,)).fetchone()
+        return round(row[0], 2) if row and row[0] else None
 
 # ─── Yahoo OHLCV ────────────────────────────────────────────
 

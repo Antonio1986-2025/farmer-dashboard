@@ -230,10 +230,82 @@ def gerar_tabela_estatisticas_sinais() -> str:
     </div>"""
 
 
+def gerar_tabela_datagro(dados_datagro: dict) -> str:
+    """Gera tabela com preços DATAGRO por estado."""
+    if not dados_datagro:
+        return "<div style='padding:15px;color:#888;'>📡 Dados DATAGRO indisponíveis no momento</div>"
+
+    # Filtra só os estados (remove metadados)
+    estados = {k: v for k, v in dados_datagro.items()
+               if k not in ("_data", "_media_nacional") and isinstance(v, dict) and v.get("preco")}
+
+    if not estados:
+        return "<div style='padding:15px;color:#888;'>📡 Dados DATAGRO indisponíveis no momento</div>"
+
+    data_ref = dados_datagro.get("_data", "—")
+    media = dados_datagro.get("_media_nacional")
+
+    # Ordena estados: maiores preços primeiro
+    sorted_estados = sorted(estados.items(), key=lambda x: x[1]["preco"], reverse=True)
+
+    linhas = []
+    for estado, dados in sorted_estados:
+        preco = dados["preco"]
+        var = dados.get("variacao", 0)
+        sinal = "🔺" if var > 0 else ("🔻" if var < 0 else "➡️")
+        cor_var = "#e74c3c" if var > 0 else ("#2ecc71" if var < 0 else "#888")
+
+        # Destaque visual para o maior e menor
+        destaque = ""
+        if estado == sorted_estados[0][0]:
+            destaque = ' 🏆'
+        elif estado == sorted_estados[-1][0]:
+            destaque = ' ⬇️'
+
+        linhas.append(f"""
+        <tr>
+            <td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;">{estado}{destaque}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:bold;">R$ {preco:.2f}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;color:{cor_var};">
+                {sinal} {var:+.2f}%
+            </td>
+        </tr>""")
+
+    media_html = ""
+    if media:
+        media_html = f"""
+        <tr style="background:#e8f5e9;">
+            <td style="padding:8px;font-weight:700;">📊 Média Nacional</td>
+            <td style="padding:8px;text-align:right;font-weight:700;font-size:16px;">R$ {media:.2f}</td>
+            <td style="padding:8px;text-align:right;"></td>
+        </tr>"""
+
+    return f"""
+    <div style="font-size:12px;color:#888;margin-bottom:8px;">
+        📅 Dados de {data_ref} — Fonte oficial: <strong>Indicador do Boi DATAGRO</strong> (referência B3)
+    </div>
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Estado</th>
+                <th style="text-align:right;">Preço (R$/@)</th>
+                <th style="text-align:right;">Variação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {''.join(linhas)}
+            {media_html}
+        </tbody>
+    </table>
+    </div>"""
+
+
 def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
                     dados_clima: list, alertas: list,
                     output_path: str = None,
-                    usuario_id: int | None = None) -> str:
+                    usuario_id: int | None = None,
+                    dados_datagro: dict | None = None) -> str:
     """Gera o dashboard HTML completo."""
     hoje = date.today().strftime("%d/%m/%Y")
     registros = banco.pegar_ultimos_precos(60)
@@ -244,6 +316,7 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
     resumo_trades = gerar_resumo_trades(usuario_id)
     tabela_stats = gerar_tabela_estatisticas_sinais()
     tabela_acertos = acertos.resumo_para_dashboard()
+    tabela_datagro = gerar_tabela_datagro(dados_datagro or {})
     historico = pegar_estatisticas_historicas()
 
     def _card_historico(ativo: str, rotulo: str, dados_hist: dict, unidade: str) -> str:
@@ -286,10 +359,14 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
     cbot = dados_precos.get("cbot", "—")
     cepea_milho = dados_cepea.get("milho_cepea", "—")
     cepea_boi = dados_cepea.get("arroba_cepea", "—")
+    # Verifica se tem DATAGRO
+    tem_datagro = dados_datagro and dados_datagro.get("_media_nacional")
+    if tem_datagro:
+        cepea_boi = f'{dados_datagro["_media_nacional"]:.2f}'
     fonte_milho = "oficial" if dados_cepea.get("milho_cepea") else "estimado"
-    fonte_boi = "oficial" if dados_cepea.get("arroba_cepea") else "estimado"
     badge_oficial = '<span style="background:#2e86de;color:white;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:6px;">CEPEA</span>'
     badge_estimado = '<span style="background:#f39c12;color:white;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:6px;">ESTIMADO</span>'
+    badge_datagro = '<span style="background:#27ae60;color:white;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:6px;">DATAGRO ✓ B3</span>'
 
     alerta_count = len(alertas)
     alerta_count_prioritario = len([a for a in alertas if a.get("confianca") == "alta"])
@@ -374,10 +451,10 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
                 <div class="resumo">{'Indicador ESALQ/B3' if cepea_milho != '—' else 'Indisponível hoje'}</div>
             </div>
             <div class="card">
-                <h3>🐄 Boi CEPEA {badge_oficial if fonte_boi == 'oficial' else badge_estimado}</h3>
-                <div class="valor">{'R$ ' + str(cepea_boi) if cepea_boi != '—' else '—'}</div>
-                <div class="variacao green">Físico (R$/@)</div>
-                <div class="resumo">{'Indicador ESALQ/B3' if cepea_boi != '—' else 'Indisponível hoje'}</div>
+                <h3>🐄 Boi Gordo {badge_datagro if tem_datagro else (badge_oficial if fonte_milho == 'oficial' else badge_estimado)}</h3>
+                <div class="valor">{'R$ ' + cepea_boi if cepea_boi != '—' else '—'}</div>
+                <div class="variacao green">Físico (R$/@) — Média nacional</div>
+                <div class="resumo">{'Indicador do Boi DATAGRO — referência oficial da B3' if tem_datagro else 'Indisponível hoje'}</div>
             </div>
         </div>
 
@@ -402,6 +479,14 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
             {resumo_clima}
             <div style="margin-top:10px;font-size:12px;color:#888;">
                 Regiões monitoradas: Sorriso-MT (milho), Campo Grande-MS (milho+boi), Uberaba-MG, Rio Verde-GO
+            </div>
+        </div>
+
+        <div class="card card-full" style="margin-top:15px;">
+            <h3>🐄 Indicador do Boi DATAGRO — Preços por Estado</h3>
+            {tabela_datagro}
+            <div style="margin-top:10px;font-size:12px;color:#888;">
+                O <strong>Indicador do Boi DATAGRO</strong> é a referência oficial da B3 para liquidação dos contratos futuros de pecuária. Aprovado pela CVM.
             </div>
         </div>
 

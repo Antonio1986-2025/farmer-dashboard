@@ -17,6 +17,7 @@ from datetime import date
 from config import PASTA_PROJETO
 from dados import banco
 from coletores import precos, cepaea, clima
+from coletores.datagro import coletar_boi as coletar_datagro_boi
 from analise import regras
 from alerta import enviar, formatar
 from dashboard import gerar
@@ -35,20 +36,27 @@ async def coletar_tudo() -> tuple:
     )
     clima_dados = clima.coletar_todas_regioes()
 
+    # DATAGRO: referência oficial B3 para boi
+    datagro_boi = await asyncio.to_thread(coletar_datagro_boi)
+    if datagro_boi:
+        banco.salvar_precos_datagro(datagro_boi, "boi")
+
     print("\n📊 Salvando no banco de dados...")
+    # Usa DATAGRO como preço principal do boi
+    arroba_usar = datagro_boi.get("_media_nacional") if datagro_boi else cepea_dados.get("arroba_cepea")
     banco.salvar_precos(
         milho_b3=precos_futuros.get("milho_b3"),
         boi_b3=precos_futuros.get("boi_b3"),
         cbot=precos_futuros.get("cbot"),
         dolar=precos_futuros.get("dolar"),
         milho_cepea=cepea_dados.get("milho_cepea"),
-        arroba_cepea=cepea_dados.get("arroba_cepea"),
+        arroba_cepea=arroba_usar,
     )
 
     for c in clima_dados:
         banco.salvar_clima(c["regiao"], c["temperatura"], c["chuva_mm"], c["umidade"])
 
-    return precos_futuros, cepea_dados, clima_dados
+    return precos_futuros, cepea_dados, clima_dados, datagro_boi
 
 
 def processar_alertas(dados_precos: dict, dados_cepea: dict, dados_clima: list) -> list:
@@ -89,13 +97,15 @@ def processar_alertas(dados_precos: dict, dados_cepea: dict, dados_clima: list) 
 
 
 def gerar_e_abrir_dashboard(dados_precos: dict, dados_cepea: dict,
-                            dados_clima: list, alertas: list):
+                            dados_clima: list, alertas: list,
+                            dados_datagro: dict = None):
     """Gera o HTML e abre no navegador."""
     print("\n📄 Gerando dashboard...")
     output_path = PASTA_PROJETO / "dashboard" / "index.html"
     gerar.gerar_dashboard(
         dados_precos, dados_cepea, dados_clima, alertas,
         output_path=str(output_path),
+        dados_datagro=dados_datagro,
     )
 
     import webbrowser
@@ -186,9 +196,9 @@ async def main():
     print("║     🌾 FARMER DASHBOARD v1.0         ║")
     print("╚══════════════════════════════════════╝")
 
-    dados_precos, dados_cepea, dados_clima = await coletar_tudo()
+    dados_precos, dados_cepea, dados_clima, dados_datagro = await coletar_tudo()
     alertas = processar_alertas(dados_precos, dados_cepea, dados_clima)
-    gerar_e_abrir_dashboard(dados_precos, dados_cepea, dados_clima, alertas)
+    gerar_e_abrir_dashboard(dados_precos, dados_cepea, dados_clima, alertas, dados_datagro=dados_datagro)
 
     print("\n✅ Ciclo completo!")
 

@@ -10,12 +10,13 @@ from pydantic import BaseModel
 from config import PASTA_PROJETO, PLANOS
 from dados import banco
 from coletores import precos, cepaea, fisicos, clima, yahoo as coletor_yahoo
+from coletores.datagro import coletar_boi as coletar_datagro_boi
 from analise import regras
 from autenticacao import hash_senha, verificar_senha, criar_token, pegar_usuario_atual
 
 app = FastAPI(title="AgroSinal", version="1.0")
 
-cache = {"dados_precos": {}, "dados_cepea": {}, "dados_clima": [], "alertas": []}
+cache = {"dados_precos": {}, "dados_cepea": {}, "dados_clima": [], "alertas": [], "dados_datagro": {}}
 startup_ok = False
 
 # ─── Landing page ───────────────────────────────────────────
@@ -68,8 +69,17 @@ async def coleta_completa() -> dict:
     fisicos_dados = await asyncio.to_thread(fisicos.coletar_fisicos, cbot_brl)
     # Dados CEPEA (tentativa antiga, mantida como fallback)
     cepea_dados = await cepaea.coletar_cepea()
+    # ─── DATAGRO: Indicador do Boi (referência oficial da B3) ──────
+    datagro_boi = await asyncio.to_thread(coletar_datagro_boi)
+    if datagro_boi:
+        banco.salvar_precos_datagro(datagro_boi, "boi")
     # Mescla: Yahoo prioritário, físicos como fallback do CEPEA
     dados_precos = {**precos_futuros, **precos_yahoo}
+    # Usa DATAGRO como preço principal do boi (média nacional)
+    media_nacional = datagro_boi.get("_media_nacional") if datagro_boi else None
+    if media_nacional:
+        dados_precos["arroba_cepea"] = media_nacional
+        print(f"    📊 Boi (DATAGRO): R$ {media_nacional:.2f}/@ (média nacional)")
     clima_dados = clima.coletar_todas_regioes()
     banco.salvar_precos(
         milho_b3=dados_precos.get("milho_b3"),
@@ -108,7 +118,8 @@ async def coleta_completa() -> dict:
     cache["dados_fisicos"] = fisicos_dados
     cache["dados_clima"] = clima_dados
     cache["alertas"] = alertas
-    return {"precos": dados_precos, "cepea": cepea_dados, "clima": clima_dados, "alertas": alertas}
+    cache["dados_datagro"] = datagro_boi or {}
+    return {"precos": dados_precos, "cepea": cepea_dados, "clima": clima_dados, "alertas": alertas, "datagro": datagro_boi}
 
 
 # ─── Modelos ─────────────────────────────────────────────────
@@ -270,6 +281,7 @@ async def dashboard(usuario=Depends(pegar_usuario_atual)):
         cache["dados_clima"], cache["alertas"],
         output_path=str(DASHBOARD_HTML),
         usuario_id=usuario[0],
+        dados_datagro=cache.get("dados_datagro"),
     )
     return html
 
@@ -282,9 +294,10 @@ async def api_dados():
     clima_hoje = banco.pegar_clima_hoje()
     cepea = cache["dados_cepea"] or {}
     fisicos = cache.get("dados_fisicos", {})
-    # Determina fonte: "oficial" se veio do CEPEA, "estimado" se fallback
+    datagro_cache = cache.get("dados_datagro", {})
+    # Determina fonte: "datagro" se disponível, senão "oficial" (CEPEA), senão "estimado"
+    fonte_boi = "datagro" if datagro_cache else ("oficial" if cepea.get("arroba_cepea") else ("estimado" if fisicos.get("arroba_cepea") else "indisponivel"))
     fonte_milho = "oficial" if cepea.get("milho_cepea") else ("estimado" if fisicos.get("milho_cepea") else "indisponivel")
-    fonte_boi = "oficial" if cepea.get("arroba_cepea") else ("estimado" if fisicos.get("arroba_cepea") else "indisponivel")
     return {
         "data": str(date.today()),
         "precos": {
@@ -300,7 +313,35 @@ async def api_dados():
         } if ultimo else {},
         "clima": [{"regiao": c[2], "temp": c[3], "chuva": c[4], "umidade": c[5]} for c in clima_hoje],
         "alertas": cache["alertas"],
+        "datagro": {
+            "boi": {k: v for k, v in datagro_cache.items() if k != "_data" and k != "_media_nacional"} if datagro_cache else {},
+            "media_nacional": datagro_cache.get("_media_nacional") if datagro_cache else None,
+            "data": datagro_cache.get("_data") if datagro_cache else None,
+        } if datagro_cache else {},
     }
+
+
+@app.get("/api/datagro")
+async def api_datagro():
+    """Retorna dados completos do Indicador do Boi DATAGRO."""
+    datagro_cache = cache.get("dados_datagro", {})
+    if datagro_cache:
+        return {
+            "data": datagro_cache.get("_data"),
+            "media_nacional": datagro_cache.get("_media_nacional"),
+            "estados": {k: v for k, v in datagro_cache.items() if k not in ("_data", "_media_nacional")},
+        }
+    # Fallback: busca do banco de dados
+    precos_hoje = banco.pegar_precos_datagro_hoje("boi")
+    if precos_hoje:
+        precos_lista = [v["preco"] for v in precos_hoje.values() if v.get("preco")]
+        media = round(sum(precos_lista) / len(precos_lista), 2) if precos_lista else None
+        return {
+            "data": str(date.today()),
+            "media_nacional": media,
+            "estados": {k: v for k, v in precos_hoje.items()},
+        }
+    return {"data": None, "media_nacional": None, "estados": {}}
 
 @app.post("/api/coletar")
 async def api_coletar():
