@@ -368,8 +368,36 @@ async def historico_sinais(
     usuario=Depends(pegar_usuario_atual),
 ):
     from dashboard import gerar
-    sinais_data = api_listar_sinais(limite=50, pagina=pagina, tipo=tipo, status=status, usuario=usuario)
-    stats = api_estatisticas_sinais(usuario=usuario)
+    # Busca dados diretamente do banco (sem passar por APIs)
+    offset = (pagina - 1) * 50
+    sinais_raw = banco.pegar_sinais(usuario[0], 50, offset, tipo, status)
+    total = banco.pegar_sinais_count(usuario[0], tipo, status)
+    sinais = []
+    for s in sinais_raw:
+        sinais.append({
+            "id": s[0], "data": s[1], "tipo": s[2], "ativo": s[3],
+            "direcao": s[4], "confianca": s[5], "prazo": s[6],
+            "explicacao": s[7], "preco_alvo": s[8], "preco_atual": s[9],
+            "acertou": s[10], "data_desfecho": s[11], "created_at": s[12],
+        })
+    sinais_data = {"sinais": sinais, "total": total}
+    # Estatísticas
+    resumo = banco.pegar_resumo_sinais()
+    por_tipo = banco.pegar_estatisticas_sinais()
+    tipos = []
+    for t in por_tipo:
+        total_t = t[2] or 0
+        acertos_t = t[3] or 0
+        taxa = round(acertos_t / total_t * 100, 1) if total_t > 0 else 0
+        tipos.append({
+            "tipo": t[0], "direcao": t[1], "total": total_t,
+            "acertos": acertos_t, "erros": t[4] or 0,
+            "pendentes": t[5] or 0, "taxa_acerto": taxa,
+        })
+    total_avaliados = (resumo["acertos"] + resumo["erros"])
+    resumo["taxa_acerto"] = round(resumo["acertos"] / total_avaliados * 100, 1) if total_avaliados > 0 else 0
+    resumo["total_avaliados"] = total_avaliados
+    stats = {"resumo": resumo, "por_tipo": tipos}
     html = gerar.gerar_historico_sinais(sinais_data, stats, pagina, tipo, status,
                                          nome=usuario[2], plano=usuario[4])
     return html
