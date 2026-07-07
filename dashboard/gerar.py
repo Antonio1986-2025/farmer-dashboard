@@ -152,13 +152,13 @@ def gerar_resumo_clima(dados_clima: list) -> str:
 
         emoji_temp = "☀️" if (isinstance(temp, (int, float)) and temp > 30) else "⛅" if (isinstance(temp, (int, float)) and temp > 20) else "🌧️"
         cards.append(f"""
-        <div style="background:#f8f9fa;border-radius:10px;padding:15px;flex:1;min-width:150px;">
-            <div style="font-size:14px;color:#666;">{regiao}</div>
-            <div style="font-size:24px;font-weight:bold;">{emoji_temp} {temp}°C</div>
-            <div style="font-size:13px;color:#888;">💧 {chuva}mm | 🌫️ {umid}%</div>
+        <div class="clima-card">
+            <div class="regiao">{regiao}</div>
+            <div class="temp">{emoji_temp} {temp}°C</div>
+            <div class="detalhes">💧 {chuva}mm | 🌫️ {umid}%</div>
         </div>""")
 
-    return f'<div style="display:flex;gap:10px;flex-wrap:wrap;">{"".join(cards)}</div>'
+    return f'<div class="clima-grid">{"".join(cards)}</div>'
 
 
 def gerar_resumo_trades(usuario_id: int | None = None) -> str:
@@ -364,17 +364,17 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
     if tem_datagro:
         cepea_boi = f'{dados_datagro["_media_nacional"]:.2f}'
     fonte_milho = "oficial" if dados_cepea.get("milho_cepea") else "estimado"
-    badge_oficial = '<span style="background:#2e86de;color:white;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:6px;">CEPEA</span>'
-    badge_estimado = '<span style="background:#f39c12;color:white;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:6px;">ESTIMADO</span>'
-    badge_datagro = '<span style="background:#27ae60;color:white;font-size:10px;padding:2px 8px;border-radius:8px;margin-left:6px;">DATAGRO ✓ B3</span>'
+    badge_oficial = '<span class="badge badge-cepea">CEPEA</span>'
+    badge_estimado = '<span class="badge badge-estimado">ESTIMADO</span>'
+    badge_datagro = '<span class="badge badge-datagro">DATAGRO ✓ B3</span>'
 
     alerta_count = len(alertas)
     alerta_count_prioritario = len([a for a in alertas if a.get("confianca") == "alta"])
 
     if alerta_count_prioritario > 0:
-        alerta_badge = f'<span style="background:#e74c3c;color:white;padding:3px 12px;border-radius:12px;font-size:14px;">🔴 {alerta_count_prioritario} prioritário(s)</span>'
+        alerta_badge = f'<span class="alerta-badge alerta-badge-critico">🔴 {alerta_count_prioritario} prioritário(s)</span>'
     else:
-        alerta_badge = '<span style="background:#2ecc71;color:white;padding:3px 12px;border-radius:12px;font-size:14px;">✅ Sem alertas críticos</span>'
+        alerta_badge = '<span class="alerta-badge alerta-badge-ok">✅ Sem alertas críticos</span>'
 
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -384,47 +384,98 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
     <title>AgroSinal — {hoje}</title>
     <meta name="theme-color" content="#1a472a">
     <style>
-        * {{ margin:0; padding:0; box-sizing:border-box; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-               background:#f0f2f5; color:#333; }}
-        .container {{ max-width:1200px; margin:0 auto; padding:12px; }}
-        .header {{ background: linear-gradient(135deg, #1a472a, #2d6a4f);
-                   color:white; padding:16px 20px; border-radius:12px; margin-bottom:12px;
-                   display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }}
-        .header h1 {{ font-size:20px; }}
-        .header span {{ font-size:12px; opacity:0.8; }}
-        .grid {{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:12px; }}
-        .card {{ background:white; border-radius:10px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,0.06); }}
-        .card h3 {{ font-size:12px; color:#888; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px; }}
-        .card .valor {{ font-size:24px; font-weight:bold; }}
-        .card .variacao {{ font-size:12px; margin-top:3px; }}
-        .card .resumo {{ font-size:12px; color:#666; margin-top:6px; padding-top:6px; border-top:1px solid #eee; }}
-        .card-full {{ grid-column: 1 / -1; }}
-        .green {{ color:#2ecc71; }} .red {{ color:#e74c3c; }} .orange {{ color:#f39c12; }}
-        .footer {{ text-align:center; padding:16px; color:#888; font-size:12px; }}
-        table {{ width:100%; border-collapse:collapse; font-size:13px; }}
-        th, td {{ padding:8px 6px; text-align:left; border-bottom:1px solid #eee; }}
-        th {{ background:#f5f5f5; font-weight:600; }}
-        .table-wrap {{ overflow-x:auto; -webkit-overflow-scrolling:touch; }}
+        * {{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background:#f0f2f5; color:#333; padding:0;
+            -webkit-font-smoothing:antialiased;
+        }}
+        .container {{ max-width:1200px; margin:0 auto; padding:8px; }}
+        .header {{
+            background: linear-gradient(135deg, #1a472a, #2d6a4f);
+            color:white; padding:14px 16px; border-radius:14px; margin-bottom:10px;
+            display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px;
+            position:relative; overflow:hidden;
+        }}
+        .header::after {{
+            content:''; position:absolute; top:-50%; right:-30%;
+            width:120px; height:120px; background:rgba(255,255,255,0.04); border-radius:50%;
+        }}
+        .header-left {{ display:flex; flex-direction:column; }}
+        .header h1 {{ font-size:18px; line-height:1.3; }}
+        .header .data {{ font-size:11px; opacity:0.75; margin-top:1px; }}
+        .header-actions {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }}
+        .header-actions a {{
+            color:white; font-size:12px; text-decoration:none;
+            padding:5px 10px; border-radius:20px; background:rgba(255,255,255,0.12);
+            transition:all .2s; white-space:nowrap;
+        }}
+        .header-actions a:active {{ background:rgba(255,255,255,0.25); }}
+        .grid {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }}
+        .card {{
+            background:white; border-radius:12px; padding:12px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.05);
+            transition:transform .15s, box-shadow .15s;
+        }}
+        .card:active {{ transform:scale(.97); }}
+        .card h3 {{
+            font-size:10px; color:#888; margin-bottom:4px;
+            text-transform:uppercase; letter-spacing:0.3px; font-weight:600;
+        }}
+        .card .valor {{ font-size:20px; font-weight:700; line-height:1.2; }}
+        .card .variacao {{ font-size:10px; margin-top:2px; }}
+        .card .resumo {{ font-size:10px; color:#666; margin-top:4px; padding-top:4px; border-top:1px solid #eee; line-height:1.4; }}
+        .card-full {{ grid-column:1/-1; }}
+        .badge {{ display:inline-block; font-size:8px; padding:2px 7px; border-radius:10px; font-weight:600; vertical-align:middle; margin-left:4px; }}
+        .badge-datagro {{ background:#27ae60; color:white; }}
+        .badge-cepea {{ background:#2e86de; color:white; }}
+        .badge-estimado {{ background:#f39c12; color:white; }}
+        .alerta-badge {{ display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:600; }}
+        .alerta-badge-critico {{ background:#e74c3c; color:white; }}
+        .alerta-badge-ok {{ background:#2ecc71; color:white; }}
+        .table-wrap {{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px; padding:0 4px; }}
+        .table-wrap::-webkit-scrollbar {{ height:3px; }}
+        .table-wrap::-webkit-scrollbar-thumb {{ background:#ddd; border-radius:3px; }}
+        table {{ width:100%; border-collapse:collapse; font-size:12px; min-width:400px; }}
+        th, td {{ padding:7px 5px; text-align:left; border-bottom:1px solid #f0f0f0; }}
+        th {{ background:#f8f9fa; font-weight:600; font-size:11px; color:#666; white-space:nowrap; }}
+        tr:active {{ background:#f8f9fa; }}
+        .clima-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }}
+        .clima-card {{ background:#f8f9fa; border-radius:10px; padding:10px; text-align:center; }}
+        .clima-card .regiao {{ font-size:11px; color:#666; margin-bottom:2px; }}
+        .clima-card .temp {{ font-size:20px; font-weight:700; margin:2px 0; }}
+        .clima-card .detalhes {{ font-size:10px; color:#888; }}
+        .footer {{ text-align:center; padding:14px 8px; color:#aaa; font-size:11px; }}
         @media(min-width:768px) {{
-            body {{ padding:20px; }}
+            body {{ padding:16px; }}
             .container {{ padding:0; }}
-            .header {{ padding:25px 30px; }}
-            .header h1 {{ font-size:28px; }}
-            .card {{ padding:20px; }}
-            .card .valor {{ font-size:32px; }}
-            .grid {{ grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:15px; }}
+            .header {{ padding:22px 28px; border-radius:16px; margin-bottom:16px; }}
+            .header h1 {{ font-size:26px; }}
+            .header .data {{ font-size:13px; }}
+            .header-actions a {{ font-size:13px; padding:6px 14px; }}
+            .grid {{ grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:16px; }}
+            .card {{ padding:18px; border-radius:14px; }}
+            .card h3 {{ font-size:11px; }}
+            .card .valor {{ font-size:28px; }}
+            .card .variacao {{ font-size:12px; }}
+            .card .resumo {{ font-size:12px; }}
+            .card-full {{ padding:20px; }}
+            table {{ font-size:13px; }}
+            th, td {{ padding:9px 8px; }}
+            .clima-grid {{ grid-template-columns:repeat(4,1fr); gap:12px; }}
+            .clima-card {{ padding:14px; }}
+            .clima-card .temp {{ font-size:24px; }}
         }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div>
+            <div class="header-left">
                 <h1>🌱 AgroSinal</h1>
-                <span>{hoje}</span>
+                <span class="data">{hoje}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div class="header-actions">
                 {alerta_badge}
                 <a href="/minha-conta" style="color:white;font-size:13px;text-decoration:none;opacity:.9;">⚙️ Conta</a>
                 <a href="/" style="color:white;font-size:13px;text-decoration:none;opacity:.8;">← Sair</a>
