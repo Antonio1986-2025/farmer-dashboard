@@ -471,10 +471,10 @@ async def api_listar_sinais(
     sinais = []
     for s in sinais_raw:
         sinais.append({
-            "id": s[0], "data": s[2], "tipo": s[3], "ativo": s[4],
-            "direcao": s[5], "confianca": s[6], "prazo": s[7],
-            "explicacao": s[8], "preco_alvo": s[9], "preco_atual": s[10],
-            "acertou": s[11], "data_desfecho": s[12], "created_at": s[13],
+            "id": s[0], "data": s[1], "tipo": s[2], "ativo": s[3],
+            "direcao": s[4], "confianca": s[5], "prazo": s[6],
+            "explicacao": s[7], "preco_alvo": s[8], "preco_atual": s[9],
+            "acertou": s[10], "data_desfecho": s[11], "created_at": s[12],
         })
     return {
         "sinais": sinais, "total": total,
