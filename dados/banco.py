@@ -565,8 +565,9 @@ def fechar_trade(usuario_id: int, trade_id: int, preco_saida: float, observacao:
         #           5=preco_entrada, 6=preco_saida, 7=data_entrada, 8=data_saida,
         #           9=resultado, 10=pnl, 11=dias_operacao, 12=observacao, 13=quantidade
         sinal_id, ativo, tipo, preco_entrada, data_entrada = trade[2], trade[3], trade[4], trade[5], trade[7]
-        quantidade = trade[13] if len(trade) > 13 else 1.0
-        data_entrada = data_entrada or str(date.today())
+        quantidade = float(trade[13]) if len(trade) > 13 and trade[13] is not None else 1.0
+        if not data_entrada:
+            data_entrada = str(date.today())
         dias = (date.today() - date.fromisoformat(data_entrada)).days
         pnl = (preco_saida - preco_entrada) * quantidade if tipo == 'compra' else (preco_entrada - preco_saida) * quantidade
         resultado = 'lucro' if pnl > 0 else 'prejuizo'
