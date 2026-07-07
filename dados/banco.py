@@ -81,6 +81,7 @@ def criar_tabelas():
                 pnl REAL,
                 dias_operacao INTEGER,
                 observacao TEXT,
+                quantidade REAL DEFAULT 1.0,
                 created_at TEXT DEFAULT (datetime('now','localtime')),
                 FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
                 FOREIGN KEY (sinal_id) REFERENCES sinais(id)
@@ -117,8 +118,9 @@ def criar_tabelas():
             );
         """)
         # Migração: adiciona colunas novas em tabelas existentes
-        for col in [(("sinais", "usuario_id"), "INTEGER REFERENCES usuarios(id)"),
-                     (("trades", "usuario_id"), "INTEGER REFERENCES usuarios(id)")]:
+        for col in [(( "sinais", "usuario_id"), "INTEGER REFERENCES usuarios(id)"),
+                     (( "trades", "usuario_id"), "INTEGER REFERENCES usuarios(id)"),
+                     (( "trades", "quantidade"), "REAL DEFAULT 1.0")]:
             (tabela, coluna), tipo = col
             if not conn.execute(f"PRAGMA table_info({tabela})").fetchall():
                 continue
@@ -179,7 +181,6 @@ def alterar_senha(usuario_id: int, senha_hash: str):
                      (senha_hash, usuario_id))
 
 def pegar_usuarios_com_whatsapp() -> list:
-    """Retorna usuários que cadastraram WhatsApp, com plano e número."""
     with conectar() as conn:
         rows = conn.execute(
             "SELECT id, nome, whatsapp, plano FROM usuarios "
@@ -202,6 +203,11 @@ def listar_ativos_usuario(usuario_id: int) -> list[str]:
             (usuario_id,)
         ).fetchall()
         return [r[0] for r in rows if r[0]]
+
+def contar_usuarios() -> int:
+    with conectar() as conn:
+        row = conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()
+        return row[0] if row else 0
 
 # ─── Preços ─────────────────────────────────────────────────
 
@@ -264,12 +270,6 @@ ESTADOS_BOI = ["SP", "GO", "MG", "MS", "MT", "PA", "RO", "TO", "BA"]
 
 
 def salvar_precos_datagro(dados_boi: dict, produto: str = "boi"):
-    """Salva preços DATAGRO no banco.
-
-    Args:
-        dados_boi: dict {estado: {preco, variacao, data, maxima, minima, nome}}
-        produto: 'boi', 'vaca' ou 'novilha'
-    """
     if not dados_boi:
         return
     conn = conectar()
@@ -296,11 +296,6 @@ def salvar_precos_datagro(dados_boi: dict, produto: str = "boi"):
 
 
 def pegar_precos_datagro_hoje(produto: str = "boi") -> dict:
-    """Retorna preços DATAGRO de hoje para um produto.
-
-    Returns:
-        dict {estado: {preco, variacao, maxima, minima, nome}} ou dict vazio.
-    """
     with conectar() as conn:
         hoje = str(date.today())
         rows = conn.execute("""
@@ -321,7 +316,6 @@ def pegar_precos_datagro_hoje(produto: str = "boi") -> dict:
 
 
 def pegar_serie_datagro(estado: str, dias: int = 60, produto: str = "boi") -> list[dict]:
-    """Retorna série histórica de um estado para gráficos."""
     with conectar() as conn:
         rows = conn.execute("""
             SELECT data, preco, variacao
@@ -337,7 +331,6 @@ def pegar_serie_datagro(estado: str, dias: int = 60, produto: str = "boi") -> li
 
 
 def pegar_media_nacional_datagro(dias: int = 1, produto: str = "boi") -> float | None:
-    """Calcula média nacional dos preços DATAGRO."""
     with conectar() as conn:
         limite = str(date.today()) if dias == 1 else None
         if limite:
@@ -367,7 +360,6 @@ def salvar_preco_yahoo(ticker: str, fechamento: float,
     """, (ticker, hoje, abertura, maxima, minima, fechamento, volume))
 
 def salvar_precos_yahoo_lote(ticker: str, registros: list[dict]):
-    """Salva múltiplos registros OHLCV de uma vez (INSERT OR REPLACE)."""
     conn = conectar()
     dados = [
         (ticker, r["data"], r.get("abertura"), r.get("maxima"),
@@ -471,7 +463,6 @@ def pegar_estatisticas_sinais():
 
 def pegar_sinais(usuario_id: int | None = None, limite: int = 50, offset: int = 0,
                 tipo: str | None = None, status: str | None = None):
-    """Lista sinais com paginação e filtros."""
     with conectar() as conn:
         wheres = []
         params = []
@@ -498,7 +489,6 @@ def pegar_sinais(usuario_id: int | None = None, limite: int = 50, offset: int = 
 
 def pegar_sinais_count(usuario_id: int | None = None, tipo: str | None = None,
                       status: str | None = None) -> int:
-    """Conta sinais com os mesmos filtros."""
     with conectar() as conn:
         wheres = []
         params = []
@@ -521,7 +511,6 @@ def pegar_sinais_count(usuario_id: int | None = None, tipo: str | None = None,
         return row[0] if row else 0
 
 def pegar_resumo_sinais():
-    """Resumo geral das estatísticas de sinais para o dashboard."""
     with conectar() as conn:
         dados = conn.execute("""
             SELECT
@@ -552,15 +541,17 @@ def pegar_sinais_pendentes(dias: int = 30):
             ORDER BY data DESC
         """, (f"-{dias} days",)).fetchall()
 
-# ─── Trades ─────────────────────────────────────────────────
+# ─── Trades / Operações por Usuário ──────────────────────────
 
-def registrar_trade(usuario_id: int, sinal_id=None, ativo="", tipo="", preco_entrada=0.0):
+def registrar_trade(usuario_id: int, sinal_id=None, ativo="", tipo="", preco_entrada=0.0,
+                    quantidade: float = 1.0):
     with conectar() as conn:
         hoje = str(date.today())
         conn.execute("""
-            INSERT INTO trades (sinal_id, ativo, tipo, preco_entrada, data_entrada, usuario_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (sinal_id, ativo, tipo, preco_entrada, hoje, usuario_id))
+            INSERT INTO trades
+                (sinal_id, ativo, tipo, preco_entrada, data_entrada, usuario_id, quantidade)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (sinal_id, ativo, tipo, preco_entrada, hoje, usuario_id, quantidade))
         return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 def fechar_trade(usuario_id: int, trade_id: int, preco_saida: float, observacao: str = ""):
@@ -570,10 +561,14 @@ def fechar_trade(usuario_id: int, trade_id: int, preco_saida: float, observacao:
         ).fetchone()
         if not trade:
             return
-        _, sinal_id, ativo, tipo, preco_entrada, _, data_entrada, *_ = trade
+        # Columns: 0=id, 1=usuario_id, 2=sinal_id, 3=ativo, 4=tipo,
+        #           5=preco_entrada, 6=preco_saida, 7=data_entrada, 8=data_saida,
+        #           9=resultado, 10=pnl, 11=dias_operacao, 12=observacao, 13=quantidade
+        sinal_id, ativo, tipo, preco_entrada, data_entrada = trade[2], trade[3], trade[4], trade[5], trade[7]
+        quantidade = trade[13] if len(trade) > 13 else 1.0
         data_entrada = data_entrada or str(date.today())
         dias = (date.today() - date.fromisoformat(data_entrada)).days
-        pnl = preco_saida - preco_entrada if tipo == 'compra' else preco_entrada - preco_saida
+        pnl = (preco_saida - preco_entrada) * quantidade if tipo == 'compra' else (preco_entrada - preco_saida) * quantidade
         resultado = 'lucro' if pnl > 0 else 'prejuizo'
         hoje = str(date.today())
 
@@ -594,7 +589,8 @@ def pegar_trades_abertos(usuario_id: int | None = None):
     with conectar() as conn:
         if usuario_id:
             return conn.execute("""
-                SELECT t.*, s.explicacao as motivo
+                SELECT t.*, s.explicacao as motivo, s.tipo as sinal_tipo,
+                       s.direcao as sinal_direcao, s.preco_alvo as sinal_preco_alvo
                 FROM trades t
                 LEFT JOIN sinais s ON t.sinal_id = s.id
                 WHERE t.resultado = 'aberto' AND t.usuario_id = ?
@@ -605,6 +601,152 @@ def pegar_trades_abertos(usuario_id: int | None = None):
             LEFT JOIN sinais s ON t.sinal_id = s.id
             WHERE t.resultado = 'aberto'
         """).fetchall()
+
+def pegar_operacoes_usuario(usuario_id: int, limite: int = 50, offset: int = 0):
+    """Retorna operações (trades) de um usuário, com dados do sinal, ordenadas por data."""
+    with conectar() as conn:
+        rows = conn.execute("""
+            SELECT t.*, s.explicacao as sinal_explicacao, s.tipo as sinal_tipo,
+                   s.direcao as sinal_direcao, s.confianca as sinal_confianca,
+                   s.preco_alvo as sinal_preco_alvo
+            FROM trades t
+            LEFT JOIN sinais s ON t.sinal_id = s.id
+            WHERE t.usuario_id = ?
+            ORDER BY t.id DESC
+            LIMIT ? OFFSET ?
+        """, (usuario_id, limite, offset)).fetchall()
+        return rows
+
+def pegar_total_operacoes_usuario(usuario_id: int) -> int:
+    with conectar() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM trades WHERE usuario_id = ?", (usuario_id,)
+        ).fetchone()
+        return row[0] if row else 0
+
+def pegar_operacao_por_sinal(usuario_id: int, sinal_id: int):
+    """Verifica se usuário já está numa operação para este sinal."""
+    with conectar() as conn:
+        return conn.execute("""
+            SELECT * FROM trades
+            WHERE usuario_id = ? AND sinal_id = ? AND resultado = 'aberto'
+            LIMIT 1
+        """, (usuario_id, sinal_id)).fetchone()
+
+def pegar_performance_usuario(usuario_id: int) -> dict:
+    """Estatísticas completas de performance de um usuário."""
+    with conectar() as conn:
+        # Trades fechados
+        fechados = conn.execute("""
+            SELECT
+                COUNT(*) as total,
+                COALESCE(SUM(CASE WHEN resultado = 'lucro' THEN 1 ELSE 0 END), 0) as vitorias,
+                COALESCE(SUM(CASE WHEN resultado = 'prejuizo' THEN 1 ELSE 0 END), 0) as derrotas,
+                COALESCE(SUM(CASE WHEN resultado = 'lucro' THEN pnl ELSE 0 END), 0) as lucro_total,
+                COALESCE(SUM(CASE WHEN resultado = 'prejuizo' THEN pnl ELSE 0 END), 0) as prejuizo_total,
+                COALESCE(AVG(dias_operacao), 0) as dias_medio,
+                COALESCE(MAX(pnl), 0) as maior_lucro,
+                COALESCE(MIN(pnl), 0) as maior_prejuizo
+            FROM trades WHERE resultado != 'aberto' AND usuario_id = ?
+        """, (usuario_id,)).fetchone()
+
+        # Trades abertos
+        abertos = conn.execute("""
+            SELECT COUNT(*), COALESCE(SUM(preco_entrada * quantidade), 0)
+            FROM trades WHERE resultado = 'aberto' AND usuario_id = ?
+        """, (usuario_id,)).fetchone()
+
+        # Performance por ativo
+        por_ativo = conn.execute("""
+            SELECT ativo,
+                   COUNT(*) as total,
+                   SUM(CASE WHEN resultado = 'lucro' THEN 1 ELSE 0 END) as vitorias,
+                   SUM(CASE WHEN resultado = 'prejuizo' THEN 1 ELSE 0 END) as derrotas,
+                   COALESCE(SUM(CASE WHEN resultado = 'lucro' THEN pnl ELSE 0 END), 0) as lucro,
+                   COALESCE(SUM(CASE WHEN resultado = 'prejuizo' THEN pnl ELSE 0 END), 0) as prejuizo
+            FROM trades WHERE resultado != 'aberto' AND usuario_id = ?
+            GROUP BY ativo
+            ORDER BY total DESC
+        """, (usuario_id,)).fetchall()
+
+        # Série mensal de lucro
+        mensal = conn.execute("""
+            SELECT strftime('%Y-%m', data_saida) as mes,
+                   COUNT(*) as total,
+                   COALESCE(SUM(CASE WHEN resultado = 'lucro' THEN pnl ELSE 0 END), 0) as lucro,
+                   COALESCE(SUM(CASE WHEN resultado = 'prejuizo' THEN pnl ELSE 0 END), 0) as prejuizo
+            FROM trades WHERE resultado != 'aberto' AND usuario_id = ? AND data_saida IS NOT NULL
+            GROUP BY mes
+            ORDER BY mes DESC LIMIT 12
+        """, (usuario_id,)).fetchall()
+
+        total = fechados[0] or 0
+        vitorias = fechados[1] or 0
+        derrotas = fechados[2] or 0
+        lucro_total = (fechados[3] or 0) + (fechados[4] or 0)
+        taxa = round(vitorias / total * 100, 1) if total > 0 else 0
+
+        return {
+            "total": total,
+            "vitorias": vitorias,
+            "derrotas": derrotas,
+            "taxa_acerto": taxa,
+            "lucro_total": round(lucro_total, 2),
+            "dias_medio": round(fechados[5] or 0, 1),
+            "maior_lucro": round(fechados[6] or 0, 2),
+            "maior_prejuizo": round(fechados[7] or 0, 2),
+            "abertos": abertos[0] or 0,
+            "capital_aberto": round(abertos[1] or 0, 2),
+            "por_ativo": [
+                {
+                    "ativo": a[0] or "geral",
+                    "total": a[1] or 0,
+                    "vitorias": a[2] or 0,
+                    "derrotas": a[3] or 0,
+                    "lucro": round((a[4] or 0) + (a[5] or 0), 2),
+                    "taxa": round((a[2] or 0) / (a[1] or 1) * 100, 1) if (a[1] or 0) > 0 else 0,
+                }
+                for a in por_ativo
+            ],
+            "mensal": [
+                {
+                    "mes": m[0],
+                    "total": m[1] or 0,
+                    "resultado": round((m[2] or 0) + (m[3] or 0), 2),
+                }
+                for m in mensal
+            ],
+        }
+
+def pegar_performance_geral() -> dict:
+    """Estatísticas agregadas de todos os usuários (visão admin)."""
+    with conectar() as conn:
+        total_operacoes = conn.execute("""
+            SELECT
+                COUNT(*) as total,
+                COUNT(DISTINCT usuario_id) as usuarios_ativos,
+                COALESCE(SUM(CASE WHEN resultado = 'lucro' THEN 1 ELSE 0 END), 0) as vitorias,
+                COALESCE(SUM(CASE WHEN resultado = 'prejuizo' THEN 1 ELSE 0 END), 0) as derrotas,
+                COALESCE(SUM(pnl), 0) as pnl_total
+            FROM trades WHERE resultado != 'aberto'
+        """).fetchone()
+
+        total = total_operacoes[0] or 0
+        vitorias = total_operacoes[2] or 0
+        taxa_geral = round(vitorias / total * 100, 1) if total > 0 else 0
+
+        return {
+            "total_operacoes": total,
+            "usuarios_ativos": total_operacoes[1] or 0,
+            "vitorias": vitorias,
+            "derrotas": total_operacoes[3] or 0,
+            "taxa_acerto_geral": taxa_geral,
+            "pnl_total": round(total_operacoes[4] or 0, 2),
+            "total_usuarios": contar_usuarios(),
+            "operacoes_abertas": conn.execute(
+                "SELECT COUNT(*) FROM trades WHERE resultado = 'aberto'"
+            ).fetchone()[0] or 0,
+        }
 
 def pegar_resumo_trades(usuario_id: int | None = None):
     with conectar() as conn:

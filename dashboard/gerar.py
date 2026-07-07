@@ -603,7 +603,8 @@ def gerar_historico_sinais(sinais_data: dict, stats: dict, pagina: int,
     # Filtro select
     opcoes_tipo = {"": "Todos", "cbot": "CBOT", "analise_milho": "Milho", "analise_boi": "Boi",
                   "relacao_boi_milho": "Relação B/M", "dolar": "Dólar", "combinado_milho": "Sinais Fortes",
-                  "historico_cbot": "Hist. CBOT", "historico_dolar": "Hist. Dólar"}
+                  "historico_cbot": "Hist. CBOT", "historico_dolar": "Hist. Dólar",
+                  "sazonalidade_milho": "Saz. Milho", "sazonalidade_boi": "Saz. Boi"}
     filtro_tipo_html = "".join(
         f'<option value="{k}" {"selected" if tipo == k or (not tipo and not k) else ""}>{v}</option>'
         for k, v in opcoes_tipo.items()
@@ -622,6 +623,7 @@ def gerar_historico_sinais(sinais_data: dict, stats: dict, pagina: int,
             <div style="display:flex;gap:4px;">
                 <button class="btn-acerto" onclick="avaliar({sid},'sim')">✅</button>
                 <button class="btn-erro" onclick="avaliar({sid},'nao')">❌</button>
+                <button class="btn-entrar" onclick="entrar({sid})" style="background:#27ae60;color:white;border:none;padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;">ENTRAR</button>
             </div>'''
         else:
             botoes = status_emoji
@@ -686,6 +688,27 @@ def gerar_historico_sinais(sinais_data: dict, stats: dict, pagina: int,
         background:#333; color:white; padding:10px 20px; border-radius:12px;
         font-size:13px; display:none; z-index:999;
     }}
+    .modal {{
+        position:fixed; top:0; left:0; width:100%; height:100%;
+        background:rgba(0,0,0,0.5); display:none; justify-content:center;
+        align-items:center; z-index:1000;
+    }}
+    .modal-content {{
+        background:white; border-radius:14px; padding:20px; max-width:380px;
+        width:90%; box-shadow:0 4px 20px rgba(0,0,0,0.2);
+    }}
+    .modal-content h3 {{ margin-bottom:10px; font-size:16px; }}
+    .modal-content label {{ font-size:12px; color:#555; display:block; margin-top:8px; }}
+    .modal-content input {{
+        width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:8px;
+        font-size:14px; margin-top:3px;
+    }}
+    .modal-content button {{
+        margin-top:14px; width:100%; padding:10px; border:none; border-radius:10px;
+        font-size:14px; cursor:pointer;
+    }}
+    .btn-confirm {{ background:#27ae60; color:white; }}
+    .btn-cancel {{ background:#eee; color:#666; }}
 </style>
 </head>
 <body>
@@ -694,6 +717,7 @@ def gerar_historico_sinais(sinais_data: dict, stats: dict, pagina: int,
         <h1>📜 Histórico de Sinais</h1>
         <div style="display:flex;gap:8px;">
             <a href="/dashboard">← Dashboard</a>
+            <a href="/dashboard/performance">🏆 Performance</a>
             <a href="/">Sair</a>
         </div>
     </div>
@@ -729,10 +753,10 @@ def gerar_historico_sinais(sinais_data: dict, stats: dict, pagina: int,
     </div>
 
     <div class="filtros">
-        <select onchange="window.location='/dashboard/historico?tipo='+this.value+'&status={' + status or '' + '}'">
+        <select onchange="window.location='/dashboard/historico?tipo='+this.value+'&status='+document.getElementById('filtro-status').value">
             {filtro_tipo_html}
         </select>
-        <select onchange="window.location='/dashboard/historico?status='+this.value+'&tipo={' + (tipo or '') + '}'">
+        <select id="filtro-status" onchange="window.location='/dashboard/historico?status='+this.value+'&tipo='+document.getElementById('filtro-tipo').value">
             <option value="" {"selected" if not status else ""}>Todos os status</option>
             <option value="aberto" {"selected" if status=="aberto" else ""}>⏳ Pendentes</option>
             <option value="acertou" {"selected" if status=="acertou" else ""}>✅ Acertou</option>
@@ -745,7 +769,7 @@ def gerar_historico_sinais(sinais_data: dict, stats: dict, pagina: int,
         <table>
             <tr>
                 <th>#</th><th>Data</th><th>Tipo</th><th>Ativo</th><th>Direção</th>
-                <th>Confiança</th><th>Preço</th><th>Resultado</th><th>Explicação</th>
+                <th>Confiança</th><th>Preço</th><th>Ação</th><th>Explicação</th>
             </tr>
             {linhas_sinais if linhas_sinais else "<tr><td colspan='9' style='text-align:center;color:#999;padding:30px;'>Nenhum sinal encontrado. Os sinais são gerados automaticamente pela análise do sistema.</td></tr>"}
         </table>
@@ -756,14 +780,32 @@ def gerar_historico_sinais(sinais_data: dict, stats: dict, pagina: int,
     </div>
 </div>
 
+<!-- Modal de Entrada -->
+<div id="modal-entrar" class="modal">
+    <div class="modal-content">
+        <h3>🚀 Entrar neste Sinal</h3>
+        <p id="modal-desc" style="font-size:12px;color:#888;margin-bottom:10px;">Sinal #<span id="modal-sid"></span></p>
+        <label>💰 Preço de Entrada (R$)</label>
+        <input type="number" id="preco-entrada" step="0.01" placeholder="Ex: 65.50">
+        <label>📦 Quantidade (sacas/@)</label>
+        <input type="number" id="quantidade" step="0.1" value="1.0" placeholder="1">
+        <button class="btn-confirm" onclick="confirmarEntrada()">✅ Confirmar Entrada</button>
+        <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+    </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
-function toast(msg) {{
+var sinalAtualId = null;
+
+function toast(msg, cor) {{
     var t = document.getElementById('toast');
     t.textContent = msg; t.style.display = 'block';
-    setTimeout(function() {{ t.style.display = 'none'; }}, 2000);
+    t.style.background = cor || '#333';
+    setTimeout(function() {{ t.style.display = 'none'; }}, 3000);
 }}
+
 function avaliar(id, resultado) {{
     fetch('/api/sinais/' + id + '/avaliar', {{
         method: 'POST',
@@ -772,12 +814,242 @@ function avaliar(id, resultado) {{
     }})
     .then(r => r.json())
     .then(d => {{
-        toast(resultado === 'sim' ? '✅ Sinal #' + id + ' marcado como ACERTOU!' : '❌ Sinal #' + id + ' marcado como ERROU!');
+        toast(resultado === 'sim' ? '✅ Sinal #' + id + ' marcado como ACERTOU!' : '❌ Sinal #' + id + ' marcado como ERROU!', '#27ae60');
         setTimeout(function() {{ location.reload(); }}, 1000);
     }})
-    .catch(e => toast('Erro ao avaliar sinal'));
+    .catch(e => toast('Erro ao avaliar sinal', '#e74c3c'));
+}}
+
+function entrar(id) {{
+    sinalAtualId = id;
+    document.getElementById('modal-sid').textContent = id;
+    document.getElementById('modal-entrar').style.display = 'flex';
+}}
+
+function fecharModal() {{
+    document.getElementById('modal-entrar').style.display = 'none';
+    sinalAtualId = null;
+}}
+
+function confirmarEntrada() {{
+    var preco = parseFloat(document.getElementById('preco-entrada').value);
+    var qtd = parseFloat(document.getElementById('quantidade').value) || 1.0;
+    if (!preco || preco <= 0) {{
+        toast('⚠️ Informe um preço de entrada válido', '#f39c12');
+        return;
+    }}
+    fetch('/api/operacoes/entrar', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify({{ sinal_id: sinalAtualId, preco_entrada: preco, quantidade: qtd }})
+    }})
+    .then(r => r.json())
+    .then(d => {{
+        fecharModal();
+        if (d.status === 'ok') {{
+            toast(d.mensagem + ' 🎯', '#27ae60');
+            setTimeout(function() {{ location.reload(); }}, 1500);
+        }} else {{
+            toast('⚠️ ' + (d.detail || 'Erro'), '#e74c3c');
+        }}
+    }})
+    .catch(e => toast('Erro ao entrar no sinal', '#e74c3c'));
 }}
 </script>
 </body>
 </html>"""
     return html
+
+
+# ─── Página de Performance ──────────────────────────────────
+
+def gerar_performance_usuario(perf: dict, operacoes_raw: list, geral: dict,
+                               nome: str = "Usuário", plano: str = "gratis") -> str:
+    """Gera página HTML com performance completa do usuário."""
+    hoje = date.today().strftime("%d/%m/%Y")
+    p = perf
+
+    emoji_taxa = "🔥" if p["taxa_acerto"] >= 70 else ("📊" if p["taxa_acerto"] >= 50 else "⚠️")
+    emoji_lucro = "🟢" if p["lucro_total"] > 0 else ("🔴" if p["lucro_total"] < 0 else "⚪")
+    emoji_maior = "🏆" if p["maior_lucro"] > 0 else "💀"
+
+    # ─── Tabela de operações ───
+    linhas_ops = ""
+    for t in operacoes_raw:
+        tid, sinal_id, ativo, tipo_op = t[0], t[2], t[3], t[4]
+        preco_ent, preco_sai, data_ent, data_sai = t[5], t[6], t[7], t[8]
+        resultado, pnl_val, dias, obs = t[9], t[10], t[11], t[12]
+        qtd = t[13] if len(t) > 13 else 1.0
+        sinal_expl = t[14] if len(t) > 14 else ""
+
+        if resultado == "aberto":
+            pnl_exibir = '<span style="color:#f39c12;">⏳ Aberto</span>'
+        elif resultado == "lucro":
+            pnl_exibir = '<span style="color:#27ae60;">+R$ ' + str(round(pnl_val or 0, 2)) + '</span>'
+        else:
+            pnl_exibir = '<span style="color:#e74c3c;">-R$ ' + str(abs(round(pnl_val or 0, 2))) + '</span>'
+
+        seta_dir = "🟢" if tipo_op == "compra" else "🔴"
+        linhas_ops += """<tr>
+            <td>#""" + str(tid) + """</td>
+            <td>""" + (data_ent or "-") + """</td>
+            <td>""" + (data_sai or "⏳") + """</td>
+            <td>""" + seta_dir + " " + tipo_op[:10] + """</td>
+            <td>""" + ativo + """</td>
+            <td>""" + str(qtd) + """</td>
+            <td>R$ """ + str(round(preco_ent, 2)) + """</td>
+            <td>""" + ("R$ " + str(round(preco_sai, 2)) if preco_sai else "⏳") + """</td>
+            <td>""" + pnl_exibir + """</td>
+            <td>""" + (str(dias) if dias else "-") + """d</td>
+            <td style="font-size:10px;color:#888;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">""" + (sinal_expl[:40] or "-") + """</td>
+        </tr>"""
+
+    # ─── Por Ativo ───
+    linhas_ativos = ""
+    for a in p.get("por_ativo", []):
+        emoji_a = "🟢" if a["taxa"] >= 60 else ("🟡" if a["taxa"] >= 40 else "🔴")
+        linhas_ativos += "<tr><td>" + a['ativo'] + "</td><td>" + str(a['total']) + "</td><td>" + str(a['vitorias']) + "V/" + str(a['derrotas']) + "D</td><td>" + emoji_a + " " + str(a['taxa']) + "%</td><td>R$ " + str(a['lucro']) + "</td></tr>"
+
+    # ─── Mensal ───
+    linhas_mensal = ""
+    for m in p.get("mensal", []):
+        emoji_m = "🟢" if m["resultado"] > 0 else "🔴"
+        linhas_mensal += "<tr><td>" + m['mes'] + "</td><td>" + str(m['total']) + " ops</td><td>" + emoji_m + " R$ " + str(m['resultado']) + "</td></tr>"
+
+    # ─── Geral (visão admin) ───
+    g = geral
+    taxa_geral = g.get("taxa_acerto_geral", 0)
+
+    lucro_total = p["lucro_total"]
+    classe_lucro = "verde" if lucro_total >= 0 else "vermelho"
+
+    html_parts = []
+    html_parts.append('''<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏆 Minha Performance — AgroSinal</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background:#f0f2f5; color:#333; padding:8px;
+    }
+    .container { max-width:1100px; margin:0 auto; }
+    .header {
+        background: linear-gradient(135deg, #1a472a, #2d6a4f);
+        color:white; padding:14px 16px; border-radius:14px; margin-bottom:12px;
+        display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+    }
+    .header h1 { font-size:18px; }
+    .header a { color:white; text-decoration:none; font-size:12px; padding:5px 10px; border-radius:20px; background:rgba(255,255,255,0.12); }
+    .perf-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:8px; margin-bottom:12px; }
+    .perf-card { background:white; border-radius:12px; padding:14px; text-align:center; }
+    .perf-card .big { font-size:28px; font-weight:700; }
+    .perf-card .label { font-size:10px; color:#888; text-transform:uppercase; margin-top:2px; }
+    .perf-card .sub { font-size:11px; color:#666; margin-top:4px; }
+    .verde { color:#27ae60; } .vermelho { color:#e74c3c; } .amarelo { color:#f39c12; }
+    .card { background:white; border-radius:12px; padding:14px; margin-bottom:12px; }
+    .card h3 { font-size:12px; color:#555; text-transform:uppercase; margin-bottom:10px; }
+    .table-wrap { overflow-x:auto; margin-bottom:8px; }
+    table { width:100%; border-collapse:collapse; font-size:11px; }
+    th, td { padding:7px 5px; text-align:left; border-bottom:1px solid #f0f0f0; }
+    th { background:#f8f9fa; font-weight:600; color:#666; font-size:10px; white-space:nowrap; }
+    .geral-banner {
+        background: linear-gradient(135deg, #2d6a4f, #1a472a);
+        color:white; border-radius:12px; padding:16px; margin-bottom:12px; text-align:center;
+    }
+    .geral-banner h2 { font-size:22px; }
+    .geral-banner p { font-size:13px; opacity:0.9; margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🏆 Minha Performance</h1>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <a href="/dashboard">← Dashboard</a>
+            <a href="/dashboard/historico">📜 Histórico</a>
+            <a href="/">Sair</a>
+        </div>
+    </div>
+
+    <div class="perf-grid">
+        <div class="perf-card">
+            <div class="big">''' + emoji_taxa + ' ' + str(p['taxa_acerto']) + '''%</div>
+            <div class="label">📊 Taxa de Acerto</div>
+            <div class="sub">''' + str(p['vitorias']) + 'V / ' + str(p['derrotas']) + '''D</div>
+        </div>
+        <div class="perf-card">
+            <div class="big ''' + classe_lucro + '''">''' + emoji_lucro + ' R$ ' + f'{lucro_total:.2f}' + '''</div>
+            <div class="label">💰 Lucro Total</div>
+            <div class="sub">''' + str(p['total']) + ''' operações fechadas</div>
+        </div>
+        <div class="perf-card">
+            <div class="big">''' + str(p['abertos']) + '''</div>
+            <div class="label">⏳ Operações Abertas</div>
+            <div class="sub">R$ ''' + f"{p['capital_aberto']:.2f}" + ''' em risco</div>
+        </div>
+        <div class="perf-card">
+            <div class="big verde">''' + emoji_maior + ' R$ ' + f"{p['maior_lucro']:.2f}" + '''</div>
+            <div class="label">🏆 Maior Lucro</div>
+            <div class="sub">💀 Pior: R$ ''' + f"{p['maior_prejuizo']:.2f}" + '''</div>
+        </div>
+        <div class="perf-card">
+            <div class="big">''' + str(p['dias_medio']) + '''</div>
+            <div class="label">📅 Dias Médio/Operação</div>
+            <div class="sub">Tempo médio para atingir o alvo</div>
+        </div>
+    </div>
+
+    <div class="geral-banner">
+        <h2>🌱 AgroSinal em Números</h2>
+        <p>
+            👥 ''' + str(g['total_usuarios']) + ''' usuários | 📊 ''' + str(g['total_operacoes']) + ''' operações |
+            🎯 Taxa de acerto geral: <strong>''' + str(taxa_geral) + '''%</strong> |
+            💰 P&L total: <strong>R$ ''' + f"{g['pnl_total']:.2f}" + '''</strong>
+        </p>
+    </div>
+
+    <div class="card">
+        <h3>📊 Performance por Ativo</h3>
+        <div class="table-wrap">
+            <table>
+                <tr><th>Ativo</th><th>Total</th><th>V/D</th><th>Taxa</th><th>Lucro</th></tr>
+                ''' + (linhas_ativos if linhas_ativos else '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px;">Nenhuma operação fechada ainda</td></tr>') + '''
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📈 Resultado Mensal</h3>
+        <div class="table-wrap">
+            <table>
+                <tr><th>Mês</th><th>Operações</th><th>Resultado</th></tr>
+                ''' + (linhas_mensal if linhas_mensal else '<tr><td colspan="3" style="text-align:center;color:#999;padding:20px;">Nenhum resultado mensal ainda</td></tr>') + '''
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📋 Todas as Minhas Operações</h3>
+        <div class="table-wrap">
+            <table>
+                <tr>
+                    <th>#</th><th>Entrada</th><th>Saída</th><th>Direção</th><th>Ativo</th>
+                    <th>Qtd</th><th>Preço Ent.</th><th>Preço Sai.</th><th>P&L</th><th>Dias</th><th>Sinal</th>
+                </tr>
+                ''' + (linhas_ops if linhas_ops else '<tr><td colspan="11" style="text-align:center;color:#999;padding:30px;">Você ainda não fez nenhuma operação.<br>Vá no <strong>histórico de sinais</strong> e clique em "ENTRAR" num sinal!</td></tr>') + '''
+            </table>
+        </div>
+    </div>
+
+    <div style="text-align:center;padding:14px;color:#aaa;font-size:11px;">
+        AgroSinal — Minha Performance | ''' + hoje + '''
+    </div>
+</div>
+</body>
+</html>''')
+
+    return ''.join(html_parts)

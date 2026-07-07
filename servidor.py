@@ -202,8 +202,21 @@ class TradeEntrada(BaseModel):
     ativo: str
     tipo: str
     preco: float
+    quantidade: float = 1.0
 
 class TradeSaida(BaseModel):
+    preco_saida: float
+    observacao: str = ""
+
+class EntrarSinal(BaseModel):
+    """Modelo simplificado para usuário entrar num sinal."""
+    sinal_id: int
+    preco_entrada: float
+    quantidade: float = 1.0
+    tipo: str | None = None  # compra/venda — auto se null
+
+class SairSinal(BaseModel):
+    """Modelo para fechar operação."""
     preco_saida: float
     observacao: str = ""
 
@@ -358,7 +371,8 @@ async def dashboard(usuario=Depends(pegar_usuario_atual)):
     )
     # Adiciona link pro histórico no HTML final
     link_hist = '<a href="/dashboard/historico" style="color:white;font-size:12px;text-decoration:none;padding:5px 10px;border-radius:20px;background:rgba(255,255,255,0.12);">📜 Histórico</a>'
-    html = html.replace('← Sair</a>', f'← Sair</a>{link_hist}')
+    link_perf = '<a href="/dashboard/performance" style="color:white;font-size:12px;text-decoration:none;padding:5px 10px;border-radius:20px;background:rgba(255,255,255,0.12);">🏆 Minha Performance</a>'
+    html = html.replace('← Sair</a>', f'← Sair</a>{link_hist}{link_perf}')
     return html
 
 
@@ -551,7 +565,8 @@ async def api_registrar_trade(trade: TradeEntrada, usuario=Depends(pegar_usuario
     if trade.ativo not in ativos:
         if len(ativos) >= plano["max_ativos"]:
             raise HTTPException(status_code=402, detail=f"Limite de {plano['max_ativos']} ativos. Faça upgrade!")
-    trade_id = banco.registrar_trade(usuario[0], trade.sinal_id, trade.ativo, trade.tipo, trade.preco)
+    trade_id = banco.registrar_trade(usuario[0], trade.sinal_id, trade.ativo, trade.tipo, trade.preco,
+                                      trade.quantidade)
     return {"status": "ok", "trade_id": trade_id}
 
 @app.put("/api/trade/{trade_id}")
@@ -563,6 +578,135 @@ async def api_fechar_trade(trade_id: int, saida: TradeSaida, usuario=Depends(peg
 async def api_listar_trades(usuario=Depends(pegar_usuario_atual)):
     trades = banco.pegar_trades_abertos(usuario[0])
     return {"trades": trades}
+
+
+# ─── API de Operações (entrada/saída em sinais) ──────────────
+
+@app.post("/api/operacoes/entrar")
+async def api_entrar_sinal(dados: EntrarSinal, usuario=Depends(pegar_usuario_atual)):
+    """Usuário entra num sinal: registra operação com preço de entrada."""
+    # Busca o sinal
+    sinal = banco.pegar_sinais(usuario[0], 1, 0, tipo=None, status=None)
+    sinal_info = None
+    for s in sinal:
+        if s[0] == dados.sinal_id:
+            sinal_info = s
+            break
+    if not sinal_info:
+        # Tenta buscar sem filtro de usuário
+        todos = banco.pegar_sinais(None, 100, 0)
+        for s in todos:
+            if s[0] == dados.sinal_id:
+                sinal_info = s
+                break
+    if not sinal_info:
+        raise HTTPException(status_code=404, detail="Sinal não encontrado")
+
+    # Verifica se já está numa operação aberta pra este sinal
+    existente = banco.pegar_operacao_por_sinal(usuario[0], dados.sinal_id)
+    if existente:
+        raise HTTPException(status_code=400, detail="Você já está neste sinal!")
+
+    ativo = sinal_info[4] or "geral"
+    direcao = dados.tipo or sinal_info[5] or "compra"
+    trade_id = banco.registrar_trade(
+        usuario[0], sinal_id=dados.sinal_id,
+        ativo=ativo, tipo=direcao,
+        preco_entrada=dados.preco_entrada,
+        quantidade=dados.quantidade,
+    )
+    return {
+        "status": "ok",
+        "trade_id": trade_id,
+        "mensagem": f"✅ Operação registrada! Entrada: R$ {dados.preco_entrada:.2f}",
+    }
+
+@app.post("/api/operacoes/sair/{trade_id}")
+async def api_sair_operacao(trade_id: int, dados: SairSinal, usuario=Depends(pegar_usuario_atual)):
+    """Usuário sai de uma operação: registra saída e calcula lucro."""
+    banco.fechar_trade(usuario[0], trade_id, dados.preco_saida, dados.observacao)
+
+    # Busca o resultado
+    with banco.conectar() as conn:
+        trade = conn.execute(
+            "SELECT pnl, resultado, sinal_id FROM trades WHERE id = ? AND usuario_id = ?",
+            (trade_id, usuario[0])
+        ).fetchone()
+
+    if trade and trade[2]:
+        # Sinal foi automaticamente avaliado
+        pass
+
+    return {
+        "status": "ok",
+        "pnl": round(trade[0], 2) if trade else 0,
+        "resultado": trade[1] if trade else "fechado",
+        "mensagem": f"✅ Operação fechada! P&L: R$ {round(trade[0], 2) if trade else 0:.2f}",
+    }
+
+@app.get("/api/operacoes")
+async def api_listar_operacoes(
+    limite: int = 20, pagina: int = 1,
+    usuario=Depends(pegar_usuario_atual),
+):
+    """Lista operações do usuário."""
+    offset = (pagina - 1) * limite
+    raw = banco.pegar_operacoes_usuario(usuario[0], limite, offset)
+    total = banco.pegar_total_operacoes_usuario(usuario[0])
+    operacoes = []
+    for t in raw:
+        pnl_val = t[10] if len(t) > 10 else None
+        operacoes.append({
+            "id": t[0],
+            "sinal_id": t[2],
+            "ativo": t[3],
+            "tipo": t[4],
+            "preco_entrada": t[5],
+            "preco_saida": t[6],
+            "data_entrada": t[7],
+            "data_saida": t[8],
+            "resultado": t[9],
+            "pnl": round(pnl_val, 2) if pnl_val else None,
+            "dias": t[11],
+            "quantidade": t[13] if len(t) > 13 else 1.0,
+            "sinal_explicacao": t[14] if len(t) > 14 else None,
+            "sinal_tipo": t[15] if len(t) > 15 else None,
+            "sinal_direcao": t[16] if len(t) > 16 else None,
+        })
+    return {"operacoes": operacoes, "total": total, "pagina": pagina}
+
+@app.get("/api/performance")
+async def api_performance_usuario(usuario=Depends(pegar_usuario_atual)):
+    """Performance completa do usuário logado."""
+    perf = banco.pegar_performance_usuario(usuario[0])
+    return {
+        "usuario": usuario[2],
+        "plano": usuario[4],
+        "performance": perf,
+    }
+
+@app.get("/api/performance/geral")
+async def api_performance_geral(usuario=Depends(pegar_usuario_atual)):
+    """Performance geral da plataforma (visão admin/produto)."""
+    geral = banco.pegar_performance_geral()
+    return {
+        "plataforma": geral,
+        "mensagem": "Dados agregados de todos os usuários — use para vender o produto!",
+    }
+
+
+# ─── Página de Performance ──────────────────────────────────
+
+@app.get("/dashboard/performance", response_class=HTMLResponse)
+async def pagina_performance(usuario=Depends(pegar_usuario_atual)):
+    """Página HTML com performance completa do usuário."""
+    from dashboard import gerar
+    perf = banco.pegar_performance_usuario(usuario[0])
+    operacoes_raw = banco.pegar_operacoes_usuario(usuario[0], 200, 0)
+    geral = banco.pegar_performance_geral()
+    html = gerar.gerar_performance_usuario(perf, operacoes_raw, geral,
+                                           nome=usuario[2], plano=usuario[4])
+    return html
 
 
 # ─── Startup ─────────────────────────────────────────────────
