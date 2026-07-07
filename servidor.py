@@ -418,13 +418,20 @@ async def api_datagro():
 
 @app.post("/api/coletar")
 async def api_coletar():
+    """Dispara coleta em background e retorna imediatamente."""
+    asyncio.create_task(coleta_completa_async())
+    return {"status": "coletando", "mensagem": "Coleta iniciada em segundo plano. Aguarde ~90s."}
+
+
+async def coleta_completa_async():
+    """Wrapper async que roda coleta_completa tratando erros."""
     try:
-        await asyncio.wait_for(coleta_completa(), timeout=120)
-        return {"status": "ok", "alertas": len(cache["alertas"])}
+        await asyncio.wait_for(coleta_completa(), timeout=180)
+        print(f"  ✅ Coleta concluída: {len(cache['alertas'])} alertas")
     except asyncio.TimeoutError:
-        return {"status": "timeout", "alertas": len(cache.get("alertas", []))}
+        print("  ⏰ Coleta excedeu tempo limite")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"  ⚠️ Coleta: {e}")
 
 @app.get("/api/health")
 async def health():
@@ -471,12 +478,6 @@ async def _background_startup():
     except Exception as e:
         print(f"  ⚠️ Histórico inicial: {e}")
     # Coleta dados na inicialização
-    try:
-        print("  📡 Coletando dados na inicialização...")
-        await asyncio.wait_for(coleta_completa(), timeout=120)
-        print(f"  ✅ Coleta inicial concluída: {len(cache['alertas'])} alertas")
-    except asyncio.TimeoutError:
-        print("  ⏰ Coleta inicial excedeu tempo limite")
-    except Exception as e:
-        print(f"  ⚠️ Coleta inicial: {e}")
+    print("  📡 Coletando dados na inicialização...")
+    asyncio.create_task(coleta_completa_async())
     startup_ok = True
