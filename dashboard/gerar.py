@@ -876,11 +876,11 @@ def gerar_performance_usuario(perf: dict, operacoes_raw: list, geral: dict,
     # ─── Tabela de operações ───
     linhas_ops = ""
     for t in operacoes_raw:
-        tid, sinal_id, ativo, tipo_op = t[0], t[2], t[3], t[4]
-        preco_ent, preco_sai, data_ent, data_sai = t[5], t[6], t[7], t[8]
-        resultado, pnl_val, dias, obs = t[9], t[10], t[11], t[12]
-        qtd = t[13] if len(t) > 13 else 1.0
-        sinal_expl = t[14] if len(t) > 14 else ""
+        tid, sinal_id, ativo, tipo_op = t[0], t[1], t[2], t[3]
+        preco_ent, preco_sai, data_ent, data_sai = t[4], t[5], t[6], t[7]
+        resultado, pnl_val, dias = t[8], t[9], t[10]
+        qtd = t[14] if len(t) > 14 else 1.0
+        sinal_expl = t[15] if len(t) > 15 else ""
 
         if resultado == "aberto":
             pnl_exibir = '<span style="color:#f39c12;">⏳ Aberto</span>'

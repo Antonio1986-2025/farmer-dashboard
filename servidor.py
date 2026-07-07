@@ -655,23 +655,23 @@ async def api_listar_operacoes(
     total = banco.pegar_total_operacoes_usuario(usuario[0])
     operacoes = []
     for t in raw:
-        pnl_val = t[10] if len(t) > 10 else None
         operacoes.append({
             "id": t[0],
-            "sinal_id": t[2],
-            "ativo": t[3],
-            "tipo": t[4],
-            "preco_entrada": t[5],
-            "preco_saida": t[6],
-            "data_entrada": t[7],
-            "data_saida": t[8],
-            "resultado": t[9],
-            "pnl": round(pnl_val, 2) if pnl_val else None,
-            "dias": t[11],
-            "quantidade": t[13] if len(t) > 13 else 1.0,
-            "sinal_explicacao": t[14] if len(t) > 14 else None,
-            "sinal_tipo": t[15] if len(t) > 15 else None,
-            "sinal_direcao": t[16] if len(t) > 16 else None,
+            "sinal_id": t[1],
+            "ativo": t[2],
+            "tipo": t[3],
+            "preco_entrada": t[4],
+            "preco_saida": t[5],
+            "data_entrada": t[6],
+            "data_saida": t[7],
+            "resultado": t[8],
+            "pnl": round(t[9], 2) if t[9] else None,
+            "dias": t[10],
+            "observacao": t[11],
+            "quantidade": t[14] if len(t) > 14 else 1.0,
+            "sinal_explicacao": t[15] if len(t) > 15 else None,
+            "sinal_tipo": t[16] if len(t) > 16 else None,
+            "sinal_direcao": t[17] if len(t) > 17 else None,
         })
     return {"operacoes": operacoes, "total": total, "pagina": pagina}
 

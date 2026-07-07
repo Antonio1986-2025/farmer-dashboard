@@ -561,11 +561,17 @@ def fechar_trade(usuario_id: int, trade_id: int, preco_saida: float, observacao:
         ).fetchone()
         if not trade:
             return
-        # Columns: 0=id, 1=usuario_id, 2=sinal_id, 3=ativo, 4=tipo,
-        #           5=preco_entrada, 6=preco_saida, 7=data_entrada, 8=data_saida,
-        #           9=resultado, 10=pnl, 11=dias_operacao, 12=observacao, 13=quantidade
-        sinal_id, ativo, tipo, preco_entrada, data_entrada = trade[2], trade[3], trade[4], trade[5], trade[7]
-        quantidade = float(trade[13]) if len(trade) > 13 and trade[13] is not None else 1.0
+        # ATENÇÃO: colunas físicas reais (usuario_id foi add via migration)
+        # 0=id, 1=sinal_id, 2=ativo, 3=tipo, 4=preco_entrada,
+        # 5=preco_saida, 6=data_entrada, 7=data_saida, 8=resultado,
+        # 9=pnl, 10=dias_operacao, 11=observacao, 12=created_at,
+        # 13=usuario_id, 14=quantidade
+        sinal_id = trade[1]
+        ativo = trade[2]
+        tipo = trade[3]
+        preco_entrada = trade[4]
+        data_entrada = trade[6]
+        quantidade = float(trade[14]) if len(trade) > 14 and trade[14] is not None else 1.0
         if not data_entrada:
             data_entrada = str(date.today())
         dias = (date.today() - date.fromisoformat(data_entrada)).days
