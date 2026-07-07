@@ -60,34 +60,107 @@ async def apresentacao_page():
 
 async def coleta_completa() -> dict:
     banco.criar_tabelas()
-    # Yahoo Finance como fonte principal (confiável, gratuita)
-    precos_yahoo = await asyncio.to_thread(coletor_yahoo.coletar_todos)
-    # Investing + preços físicos como complemento
-    precos_futuros = await precos.coletar_todos()
-    # Preços físicos (CEPEA → Notícias Agrícolas → Estimativa CBOT)
+
+    # ─── 1. DATAGRO (prioritário, rápido e confiável) ─────────────
+    datagro_boi = None
+    try:
+        datagro_boi = await asyncio.wait_for(
+            asyncio.to_thread(coletar_datagro_boi), timeout=20
+        )
+        if datagro_boi:
+            banco.salvar_precos_datagro(datagro_boi, "boi")
+            print(f"    ✅ DATAGRO: {len(datagro_boi)-2} estados coletados")
+    except Exception as e:
+        print(f"    ⚠️ DATAGRO: {e}")
+
+    # ─── 2. Demais coletores (com timeout individual) ─────────────
+    precos_yahoo = {}
+    precos_futuros = {}
+    fisicos_dados = {}
+    cepea_dados = {}
+    clima_dados = []
+
+    # Yahoo + Investing + Físicos (rodam em paralelo com timeout)
+    async def _coletar_yahoo():
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(coletor_yahoo.coletar_todos), timeout=25
+            )
+        except Exception as e:
+            print(f"    ⚠️ Yahoo: {e}")
+            return {}
+
+    async def _coletar_investing():
+        try:
+            return await asyncio.wait_for(precos.coletar_todos(), timeout=25)
+        except Exception as e:
+            print(f"    ⚠️ Investing: {e}")
+            return {}
+
+    async def _coletar_fisicos(cbot_brl):
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(fisicos.coletar_fisicos, cbot_brl), timeout=20
+            )
+        except Exception as e:
+            print(f"    ⚠️ Físicos: {e}")
+            return {}
+
+    async def _coletar_cepea():
+        try:
+            return await asyncio.wait_for(cepaea.coletar_cepea(), timeout=20)
+        except Exception as e:
+            print(f"    ⚠️ CEPEA: {e}")
+            return {}
+
+    # Yahoo + Investing em paralelo
+    yahoo_task = asyncio.create_task(_coletar_yahoo())
+    investing_task = asyncio.create_task(_coletar_investing())
+    precos_yahoo = await yahoo_task
+    precos_futuros = await investing_task
+
+    # Físicos (precisa do CBOT do Yahoo)
     cbot_brl = precos_yahoo.get("cbot_brl")
-    fisicos_dados = await asyncio.to_thread(fisicos.coletar_fisicos, cbot_brl)
-    # Dados CEPEA (tentativa antiga, mantida como fallback)
-    cepea_dados = await cepaea.coletar_cepea()
-    # ─── DATAGRO: Indicador do Boi (referência oficial da B3) ──────
-    datagro_boi = await asyncio.to_thread(coletar_datagro_boi)
-    if datagro_boi:
-        banco.salvar_precos_datagro(datagro_boi, "boi")
-    # Mescla: Yahoo prioritário, físicos como fallback do CEPEA
-    dados_precos = {**precos_futuros, **precos_yahoo}
-    # Usa DATAGRO como preço principal do boi (média nacional)
+    fisicos_dados = await _coletar_fisicos(cbot_brl)
+
+    # CEPEA
+    cepea_dados = await _coletar_cepea()
+
+    # Clima
+    try:
+        clima_dados = clima.coletar_todas_regioes()
+    except Exception as e:
+        print(f"    ⚠️ Clima: {e}")
+
+    # ─── 3. Mescla tudo ──────────────────────────────────────────
+    dados_precos = {}
+    # Yahoo tem prioridade
+    if precos_yahoo:
+        dados_precos.update(precos_yahoo)
+    # Investing complementa
+    if precos_futuros:
+        for k in ("milho_b3", "boi_b3", "cbot", "dolar"):
+            if k not in dados_precos or not dados_precos.get(k):
+                dados_precos[k] = precos_futuros.get(k)
+    # Físicos complementam CEPEA
+    milho_cepea_val = fisicos_dados.get("milho_cepea") or cepea_dados.get("milho_cepea")
+    if milho_cepea_val:
+        dados_precos["milho_cepea"] = milho_cepea_val
+
+    # DATAGRO como fonte principal do boi
     media_nacional = datagro_boi.get("_media_nacional") if datagro_boi else None
-    if media_nacional:
-        dados_precos["arroba_cepea"] = media_nacional
-        print(f"    📊 Boi (DATAGRO): R$ {media_nacional:.2f}/@ (média nacional)")
-    clima_dados = clima.coletar_todas_regioes()
+    arroba_cepea_val = media_nacional or fisicos_dados.get("arroba_cepea") or cepea_dados.get("arroba_cepea")
+    if arroba_cepea_val:
+        dados_precos["arroba_cepea"] = arroba_cepea_val
+
+    # ─── 4. Salva no banco ───────────────────────────────────────
     banco.salvar_precos(
         milho_b3=dados_precos.get("milho_b3"),
         boi_b3=dados_precos.get("boi_b3"),
         cbot=dados_precos.get("cbot_brl") or dados_precos.get("cbot"),
         dolar=dados_precos.get("dolar"),
-        milho_cepea=fisicos_dados.get("milho_cepea") or cepea_dados.get("milho_cepea"),
-        arroba_cepea=media_nacional or fisicos_dados.get("arroba_cepea") or cepea_dados.get("arroba_cepea"),
+        milho_cepea=milho_cepea_val,
+        arroba_cepea=arroba_cepea_val,
     )
     for c in clima_dados:
         banco.salvar_clima(c["regiao"], c["temperatura"], c["chuva_mm"], c["umidade"])
