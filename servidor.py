@@ -356,6 +356,22 @@ async def dashboard(usuario=Depends(pegar_usuario_atual)):
         usuario_id=usuario[0],
         dados_datagro=cache.get("dados_datagro"),
     )
+    # Adiciona link pro histórico no HTML final
+    link_hist = '<a href="/dashboard/historico" style="color:white;font-size:12px;text-decoration:none;padding:5px 10px;border-radius:20px;background:rgba(255,255,255,0.12);">📜 Histórico</a>'
+    html = html.replace('← Sair</a>', f'← Sair</a>{link_hist}')
+    return html
+
+
+@app.get("/dashboard/historico", response_class=HTMLResponse)
+async def historico_sinais(
+    pagina: int = 1, tipo: str | None = None, status: str | None = None,
+    usuario=Depends(pegar_usuario_atual),
+):
+    from dashboard import gerar
+    sinais_data = api_listar_sinais(limite=50, pagina=pagina, tipo=tipo, status=status, usuario=usuario)
+    stats = api_estatisticas_sinais(usuario=usuario)
+    html = gerar.gerar_historico_sinais(sinais_data, stats, pagina, tipo, status,
+                                         nome=usuario[2], plano=usuario[4])
     return html
 
 
@@ -438,6 +454,64 @@ async def health():
     if startup_ok or banco.pegar_ultimo_preco():
         return {"status": "ok"}
     return JSONResponse({"status": "starting"}, status_code=503)
+
+
+# ─── API protegida (sinais) ─────────────────────────────────
+
+@app.get("/api/sinais")
+async def api_listar_sinais(
+    limite: int = 30, pagina: int = 1,
+    tipo: str | None = None, status: str | None = None,
+    usuario=Depends(pegar_usuario_atual),
+):
+    """Lista sinais com paginação e filtros."""
+    offset = (pagina - 1) * limite
+    sinais_raw = banco.pegar_sinais(usuario[0], limite, offset, tipo, status)
+    total = banco.pegar_sinais_count(usuario[0], tipo, status)
+    sinais = []
+    for s in sinais_raw:
+        sinais.append({
+            "id": s[0], "data": s[2], "tipo": s[3], "ativo": s[4],
+            "direcao": s[5], "confianca": s[6], "prazo": s[7],
+            "explicacao": s[8], "preco_alvo": s[9], "preco_atual": s[10],
+            "acertou": s[11], "data_desfecho": s[12], "created_at": s[13],
+        })
+    return {
+        "sinais": sinais, "total": total,
+        "pagina": pagina, "total_paginas": max(1, (total + limite - 1) // limite),
+    }
+
+@app.post("/api/sinais/{sinal_id}/avaliar")
+async def api_avaliar_sinal(sinal_id: int, dados: dict, usuario=Depends(pegar_usuario_atual)):
+    """Marca sinal como acertou/errou manualmente."""
+    acertou = dados.get("acertou")
+    if acertou not in ("sim", "nao"):
+        raise HTTPException(status_code=400, detail="Valor inválido. Use 'sim' ou 'nao'")
+    with banco.conectar() as conn:
+        conn.execute("UPDATE sinais SET acertou = ?, data_desfecho = date('now','localtime') WHERE id = ?",
+                     (acertou, sinal_id))
+    return {"status": "ok", "sinal_id": sinal_id, "acertou": acertou}
+
+@app.get("/api/sinais/estatisticas")
+async def api_estatisticas_sinais(usuario=Depends(pegar_usuario_atual)):
+    """Estatísticas gerais e por tipo de sinal."""
+    resumo = banco.pegar_resumo_sinais()
+    por_tipo = banco.pegar_estatisticas_sinais()
+    tipos = []
+    for t in por_tipo:
+        total_t = t[2] or 0
+        acertos_t = t[3] or 0
+        taxa = round(acertos_t / total_t * 100, 1) if total_t > 0 else 0
+        tipos.append({
+            "tipo": t[0], "direcao": t[1],
+            "total": total_t, "acertos": acertos_t,
+            "erros": t[4] or 0, "pendentes": t[5] or 0,
+            "taxa_acerto": taxa,
+        })
+    total_avaliados = resumo["acertos"] + resumo["erros"]
+    resumo["taxa_acerto"] = round(resumo["acertos"] / total_avaliados * 100, 1) if total_avaliados > 0 else 0
+    resumo["total_avaliados"] = total_avaliados
+    return {"resumo": resumo, "por_tipo": tipos}
 
 
 # ─── API protegida (trades) ─────────────────────────────────

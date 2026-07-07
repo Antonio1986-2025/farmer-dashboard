@@ -514,7 +514,7 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
             {tabela_alertas}
         </div>
 
-        <div class="card card-full" style="margin-top:15px;">
+        <div class="card card-full">
             <h3>📊 Comparativo Histórico (10 anos)</h3>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
                 {card_cbot}
@@ -525,7 +525,7 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
             </div>
         </div>
 
-        <div class="card card-full" style="margin-top:15px;">
+        <div class="card card-full">
             <h3>🌤️ Clima — Regiões Relevantes</h3>
             {resumo_clima}
             <div style="margin-top:10px;font-size:12px;color:#888;">
@@ -533,7 +533,7 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
             </div>
         </div>
 
-        <div class="card card-full" style="margin-top:15px;">
+        <div class="card card-full">
             <h3>🐄 Indicador do Boi DATAGRO — Preços por Estado</h3>
             {tabela_datagro}
             <div style="margin-top:10px;font-size:12px;color:#888;">
@@ -541,22 +541,22 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
             </div>
         </div>
 
-        <div class="card card-full" style="margin-top:15px;">
+        <div class="card card-full">
             <h3>📈 Evolução dos Preços</h3>
             {grafico}
         </div>
 
-        <div class="card card-full" style="margin-top:15px;">
+        <div class="card card-full">
             <h3>📋 Minha Carteira</h3>
             {resumo_trades}
         </div>
 
-        <div class="card card-full" style="margin-top:15px;">
+        <div class="card card-full">
             <h3>🎯 Taxa de Acerto por Padrão</h3>
             {tabela_stats}
         </div>
 
-        <div class="card card-full" style="margin-top:15px;">
+        <div class="card card-full">
             <h3>📈 Performance dos Sinais (90 dias)</h3>
             {tabela_acertos}
         </div>
@@ -572,4 +572,212 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(html)
 
+    return html
+
+
+# ─── Histórico de Sinais ────────────────────────────────────
+
+def gerar_historico_sinais(sinais_data: dict, stats: dict, pagina: int,
+                            tipo: str | None, status: str | None,
+                            nome: str = "Usuário", plano: str = "gratis") -> str:
+    """Gera página HTML com histórico completo de sinais."""
+    hoje = date.today().strftime("%d/%m/%Y")
+    resumo = stats.get("resumo", {})
+    por_tipo = stats.get("por_tipo", [])
+    sinais = sinais_data.get("sinais", [])
+    total = sinais_data.get("total", 0)
+
+    # Estatísticas
+    total_sinais = resumo.get("total", 0)
+    acertos = resumo.get("acertos", 0)
+    erros = resumo.get("erros", 0)
+    pendentes = resumo.get("pendentes", 0)
+    taxa = resumo.get("taxa_acerto", 0)
+
+    # Monta tabela de tipos
+    linhas_tipos = ""
+    for t in por_tipo:
+        emoji = "🟢" if t["taxa_acerto"] >= 60 else "🟡" if t["taxa_acerto"] >= 40 else "🔴"
+        linhas_tipos += f"<tr><td>{t['tipo']}</td><td>{t['direcao']}</td><td>{t['total']}</td><td>{t['acertos']}</td><td>{t['erros']}</td><td>{emoji} {t['taxa_acerto']}%</td></tr>"
+
+    # Filtro select
+    opcoes_tipo = {"": "Todos", "cbot": "CBOT", "analise_milho": "Milho", "analise_boi": "Boi",
+                  "relacao_boi_milho": "Relação B/M", "dolar": "Dólar", "combinado_milho": "Sinais Fortes",
+                  "historico_cbot": "Hist. CBOT", "historico_dolar": "Hist. Dólar"}
+    filtro_tipo_html = "".join(
+        f'<option value="{k}" {"selected" if tipo == k or (not tipo and not k) else ""}>{v}</option>'
+        for k, v in opcoes_tipo.items()
+    )
+
+    # Tabela de sinais
+    linhas_sinais = ""
+    for s in sinais:
+        sid = s["id"]
+        emoji_conf = {"alta": "🔴", "media": "🟡", "baixa": "⚪"}.get(s["confianca"], "⚪")
+        status_emoji = "✅" if s["acertou"] == "sim" else "❌" if s["acertou"] == "nao" else "⏳"
+        preco_exibir = f"R$ {s['preco_alvo']}" if s.get("preco_alvo") else "-"
+        botoes = ""
+        if s["acertou"] is None:
+            botoes = f'''
+            <div style="display:flex;gap:4px;">
+                <button class="btn-acerto" onclick="avaliar({sid},'sim')">✅</button>
+                <button class="btn-erro" onclick="avaliar({sid},'nao')">❌</button>
+            </div>'''
+        else:
+            botoes = status_emoji
+
+        explicacao_curta = (s.get("explicacao", "") or "")[:60]
+        linhas_sinais += f"""<tr>
+            <td>#{sid}</td>
+            <td>{s['data']}</td>
+            <td>{s['tipo']}</td>
+            <td>{s['ativo']}</td>
+            <td>{s['direcao'][:12]}</td>
+            <td>{emoji_conf} {s['confianca']}</td>
+            <td>{preco_exibir}</td>
+            <td>{botoes}</td>
+            <td style="font-size:11px;color:#888;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{explicacao_curta}...</td>
+        </tr>"""
+
+    # Monta HTML completo
+    html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📜 Histórico de Sinais — AgroSinal</title>
+<style>
+    * {{ margin:0; padding:0; box-sizing:border-box; }}
+    body {{
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background:#f0f2f5; color:#333; padding:8px;
+    }}
+    .container {{ max-width:1100px; margin:0 auto; }}
+    .header {{
+        background: linear-gradient(135deg, #1a472a, #2d6a4f);
+        color:white; padding:14px 16px; border-radius:14px; margin-bottom:12px;
+        display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+    }}
+    .header h1 {{ font-size:18px; }}
+    .header a {{ color:white; text-decoration:none; font-size:12px; padding:5px 10px; border-radius:20px; background:rgba(255,255,255,0.12); }}
+    .stats-grid {{ display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:8px; margin-bottom:12px; }}
+    .stat-card {{ background:white; border-radius:12px; padding:12px; text-align:center; }}
+    .stat-card .numero {{ font-size:24px; font-weight:700; }}
+    .stat-card .label {{ font-size:10px; color:#888; text-transform:uppercase; margin-top:2px; }}
+    .verde {{ color:#27ae60; }}
+    .vermelho {{ color:#e74c3c; }}
+    .amarelo {{ color:#f39c12; }}
+    .filtros {{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }}
+    .filtros select {{
+        padding:8px 12px; border-radius:10px; border:1px solid #ddd; font-size:13px;
+        background:white;
+    }}
+    .table-wrap {{ overflow-x:auto; margin-bottom:12px; }}
+    table {{ width:100%; border-collapse:collapse; font-size:11px; }}
+    th, td {{ padding:7px 5px; text-align:left; border-bottom:1px solid #f0f0f0; }}
+    th {{ background:#f8f9fa; font-weight:600; color:#666; font-size:10px; white-space:nowrap; }}
+    .btn-acerto, .btn-erro {{
+        border:none; padding:4px 8px; border-radius:8px; cursor:pointer;
+        font-size:14px; transition:transform .1s;
+    }}
+    .btn-acerto:active, .btn-erro:active {{ transform:scale(.9); }}
+    .toast {{
+        position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+        background:#333; color:white; padding:10px 20px; border-radius:12px;
+        font-size:13px; display:none; z-index:999;
+    }}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📜 Histórico de Sinais</h1>
+        <div style="display:flex;gap:8px;">
+            <a href="/dashboard">← Dashboard</a>
+            <a href="/">Sair</a>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="numero">{total_sinais}</div>
+            <div class="label">Total de Sinais</div>
+        </div>
+        <div class="stat-card">
+            <div class="numero verde">{acertos}</div>
+            <div class="label">✅ Acertos</div>
+        </div>
+        <div class="stat-card">
+            <div class="numero vermelho">{erros}</div>
+            <div class="label">❌ Erros</div>
+        </div>
+        <div class="stat-card">
+            <div class="numero amarelo">{pendentes}</div>
+            <div class="label">⏳ Pendentes</div>
+        </div>
+        <div class="stat-card">
+            <div class="numero verde" style="font-size:28px;">{taxa}%</div>
+            <div class="label">📊 Taxa de Acerto</div>
+        </div>
+    </div>
+
+    <div class="table-wrap" style="margin-bottom:12px;">
+        <table>
+            <tr><th>Tipo</th><th>Direção</th><th>Total</th><th>Acertos</th><th>Erros</th><th>Taxa</th></tr>
+            {linhas_tipos if linhas_tipos else "<tr><td colspan='6' style='text-align:center;color:#999;padding:20px;'>Nenhum sinal avaliado ainda</td></tr>"}
+        </table>
+    </div>
+
+    <div class="filtros">
+        <select onchange="window.location='/dashboard/historico?tipo='+this.value+'&status={' + status or '' + '}'">
+            {filtro_tipo_html}
+        </select>
+        <select onchange="window.location='/dashboard/historico?status='+this.value+'&tipo={' + (tipo or '') + '}'">
+            <option value="" {"selected" if not status else ""}>Todos os status</option>
+            <option value="aberto" {"selected" if status=="aberto" else ""}>⏳ Pendentes</option>
+            <option value="acertou" {"selected" if status=="acertou" else ""}>✅ Acertou</option>
+            <option value="errou" {"selected" if status=="errou" else ""}>❌ Errou</option>
+        </select>
+        <span style="color:#888;font-size:12px;">{total} sinais</span>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <tr>
+                <th>#</th><th>Data</th><th>Tipo</th><th>Ativo</th><th>Direção</th>
+                <th>Confiança</th><th>Preço</th><th>Resultado</th><th>Explicação</th>
+            </tr>
+            {linhas_sinais if linhas_sinais else "<tr><td colspan='9' style='text-align:center;color:#999;padding:30px;'>Nenhum sinal encontrado. Os sinais são gerados automaticamente pela análise do sistema.</td></tr>"}
+        </table>
+    </div>
+
+    <div style="text-align:center;padding:12px;color:#aaa;font-size:11px;">
+        AgroSinal — Histórico de Sinais | {hoje}
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+function toast(msg) {{
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    setTimeout(function() {{ t.style.display = 'none'; }}, 2000);
+}}
+function avaliar(id, resultado) {{
+    fetch('/api/sinais/' + id + '/avaliar', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify({{ 'acertou': resultado }})
+    }})
+    .then(r => r.json())
+    .then(d => {{
+        toast(resultado === 'sim' ? '✅ Sinal #' + id + ' marcado como ACERTOU!' : '❌ Sinal #' + id + ' marcado como ERROU!');
+        setTimeout(function() {{ location.reload(); }}, 1000);
+    }})
+    .catch(e => toast('Erro ao avaliar sinal'));
+}}
+</script>
+</body>
+</html>"""
     return html

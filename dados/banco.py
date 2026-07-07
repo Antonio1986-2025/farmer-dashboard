@@ -469,6 +469,80 @@ def pegar_estatisticas_sinais():
         """).fetchall()
         return total
 
+def pegar_sinais(usuario_id: int | None = None, limite: int = 50, offset: int = 0,
+                tipo: str | None = None, status: str | None = None):
+    """Lista sinais com paginação e filtros."""
+    with conectar() as conn:
+        wheres = []
+        params = []
+        if usuario_id:
+            wheres.append("usuario_id = ? OR usuario_id IS NULL")
+            params.append(usuario_id)
+        if tipo:
+            wheres.append("tipo = ?")
+            params.append(tipo)
+        if status == "aberto":
+            wheres.append("acertou IS NULL")
+        elif status == "acertou":
+            wheres.append("acertou = 'sim'")
+        elif status == "errou":
+            wheres.append("acertou = 'nao'")
+        where_sql = " AND ".join(wheres) if wheres else "1=1"
+        rows = conn.execute(f"""
+            SELECT * FROM sinais
+            WHERE {where_sql}
+            ORDER BY id DESC
+            LIMIT ? OFFSET ?
+        """, (*params, limite, offset)).fetchall()
+        return rows
+
+def pegar_sinais_count(usuario_id: int | None = None, tipo: str | None = None,
+                      status: str | None = None) -> int:
+    """Conta sinais com os mesmos filtros."""
+    with conectar() as conn:
+        wheres = []
+        params = []
+        if usuario_id:
+            wheres.append("usuario_id = ? OR usuario_id IS NULL")
+            params.append(usuario_id)
+        if tipo:
+            wheres.append("tipo = ?")
+            params.append(tipo)
+        if status == "aberto":
+            wheres.append("acertou IS NULL")
+        elif status == "acertou":
+            wheres.append("acertou = 'sim'")
+        elif status == "errou":
+            wheres.append("acertou = 'nao'")
+        where_sql = " AND ".join(wheres) if wheres else "1=1"
+        row = conn.execute(f"""
+            SELECT COUNT(*) FROM sinais WHERE {where_sql}
+        """, params).fetchone()
+        return row[0] if row else 0
+
+def pegar_resumo_sinais():
+    """Resumo geral das estatísticas de sinais para o dashboard."""
+    with conectar() as conn:
+        dados = conn.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN acertou = 'sim' THEN 1 ELSE 0 END) as acertos,
+                SUM(CASE WHEN acertou = 'nao' THEN 1 ELSE 0 END) as erros,
+                SUM(CASE WHEN acertou IS NULL THEN 1 ELSE 0 END) as pendentes,
+                COUNT(DISTINCT tipo) as tipos_ativos,
+                MAX(data) as ultimo_sinal
+            FROM sinais
+        """).fetchone()
+        return {
+            "total": dados[0] or 0,
+            "acertos": dados[1] or 0,
+            "erros": dados[2] or 0,
+            "pendentes": dados[3] or 0,
+            "tipos_ativos": dados[4] or 0,
+            "ultimo_sinal": dados[5] or "",
+        }
+
+
 def pegar_sinais_pendentes(dias: int = 30):
     with conectar() as conn:
         return conn.execute("""
