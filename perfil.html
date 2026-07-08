@@ -3,286 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minha Conta — AgroSinal</title>
+    <title>AgroSinal — Seu Perfil</title>
     <meta name="theme-color" content="#1a472a">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-               background:#f0f2f5; color:#333; min-height:100vh; }
-        .container { max-width:720px; margin:0 auto; padding:12px; }
-        .header { background: linear-gradient(135deg, #1a472a, #2d6a4f);
-                   color:white; padding:16px 20px; border-radius:12px; margin-bottom:12px;
-                   display:flex; justify-content:space-between; align-items:center; }
-        .header h1 { font-size:20px; }
-        .header a { color:rgba(255,255,255,.8); font-size:13px; text-decoration:none; }
-        .card { background:white; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
-        .card h2 { font-size:15px; margin-bottom:12px; color:#1a472a; }
-        .campo { margin-bottom:12px; }
-        .campo label { display:block; font-size:12px; color:#888; margin-bottom:4px; }
-        .campo input, .campo select { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:14px; outline:none; }
-        .campo input:focus { border-color:#2d6a4f; }
-        .campo .dica { font-size:11px; color:#999; margin-top:4px; }
-        .btn { padding:10px 20px; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-weight:600; }
-        .btn-primary { background:#2d6a4f; color:white; }
-        .btn-primary:hover { background:#1a472a; }
-        .btn-secondary { background:#e8e8e8; color:#333; }
-        .btn-secondary:hover { background:#ddd; }
-        .btn-sm { padding:6px 14px; font-size:12px; }
-        .flex { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-        .status { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; }
-        .status-online { background:#d4edda; color:#155724; }
-        .status-offline { background:#f8d7da; color:#721c24; }
-        .status-na { background:#e8e8e8; color:#888; }
-        .qr-box { background:#f9f9f9; border:2px dashed #ddd; border-radius:12px; padding:20px; text-align:center; margin:12px 0; }
-        .qr-box img { max-width:220px; }
-        .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); padding:12px 24px; border-radius:8px; color:white; font-size:14px; z-index:999; opacity:0; transition:opacity .3s; }
-        .toast.show { opacity:1; }
-        .toast-sucesso { background:#2d6a4f; }
-        .toast-erro { background:#e74c3c; }
-        .badge-plano { display:inline-block; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; color:white; }
-        .badge-gratis { background:#888; }
-        .badge-pro { background:#f39c12; }
-        .badge-b3 { background:#2e86de; }
-        .info-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0; font-size:13px; }
-        .info-row:last-child { border-bottom:none; }
-        .info-label { color:#888; }
-        .info-value { font-weight:600; }
-        @media(min-width:768px) {
-            body { padding:20px; }
-            .container { padding:0; }
-            .header h1 { font-size:24px; }
-            .card { padding:20px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0d2818, #1a472a, #2d6a4f);
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 16px;
+        }
+        .card {
+            background: white; border-radius: 16px; padding: 32px 28px;
+            max-width: 600px; width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .card h1 {
+            font-size: 22px; color: #1a472a; margin-bottom: 4px;
+        }
+        .card .sub {
+            font-size: 13px; color: #666; margin-bottom: 24px;
+            line-height: 1.4;
+        }
+        .pergunta {
+            margin-bottom: 20px; padding-bottom: 16px;
+            border-bottom: 1px solid #eee;
+        }
+        .pergunta:last-child { border-bottom: none; margin-bottom: 0; }
+        .pergunta .rotulo {
+            font-size: 13px; font-weight: 600; color: #1a472a;
+            margin-bottom: 8px;
+        }
+        .pergunta .texto {
+            font-size: 14px; color: #333; margin-bottom: 10px;
+        }
+        .opcoes { display: flex; flex-direction: column; gap: 6px; }
+        .opcao {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border: 2px solid #e0e0e0;
+            border-radius: 10px; cursor: pointer;
+            transition: all 0.2s; font-size: 14px; color: #333;
+        }
+        .opcao:hover { border-color: #2d6a4f; background: #f0fff4; }
+        .opcao.selecionada {
+            border-color: #1a472a; background: #e8f5e9;
+            font-weight: 600;
+        }
+        .opcao input[type="radio"] {
+            accent-color: #1a472a; width: 16px; height: 16px;
+            flex-shrink: 0;
+        }
+        .btn {
+            width: 100%; margin-top: 20px;
+            padding: 14px; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s;
+            background: linear-gradient(135deg, #1a472a, #2d6a4f);
+            color: white;
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(26,71,42,0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn.secundario {
+            background: #f5f5f5; color: #333; margin-top: 8px;
+        }
+        .resultado {
+            display: none; text-align: center; padding: 16px;
+        }
+        .resultado .icone { font-size: 48px; margin-bottom: 8px; }
+        .resultado h2 { font-size: 20px; color: #1a472a; }
+        .resultado .desc { font-size: 14px; color: #555; margin: 8px 0 16px; line-height: 1.5; }
+        .erro { color: #e74c3c; font-size: 12px; margin-top: 8px; display: none; text-align: center; }
+        .progresso {
+            text-align: center; font-size: 11px; color: #999; margin-bottom: 8px;
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <div class="container">
-            <div class="header">
-                <h1>👤 {{ dados.nome || 'Minha Conta' }}</h1>
-                <a href="/dashboard">← Dashboard</a>
-            </div>
-
-            <!-- Dados Pessoais -->
-            <div class="card">
-                <h2>📋 Dados da Conta</h2>
-                <div class="info-row"><span class="info-label">Nome</span><span class="info-value">{{ dados.nome }}</span></div>
-                <div class="info-row"><span class="info-label">Email</span><span class="info-value">{{ dados.email }}</span></div>
-                <div class="info-row">
-                    <span class="info-label">Plano</span>
-                    <span class="info-value">
-                        <span :class="'badge-plano badge-' + dados.plano">{{ planoNome }}</span>
-                    </span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Alertas WhatsApp</span>
-                    <span class="info-value">
-                        <span v-if="dados.limites && dados.limites.whatsapp" style="color:#2ecc71;">✅ Disponível</span>
-                        <span v-else style="color:#888;">❌ Apenas no plano Pro</span>
-                    </span>
-                </div>
-                <div style="margin-top:12px;">
-                    <button class="btn btn-secondary btn-sm" @click="alterarSenha">🔑 Alterar senha</button>
-                </div>
-            </div>
-
-            <!-- WhatsApp -->
-            <div class="card">
-                <h2>📱 Conexão WhatsApp</h2>
-                <p style="font-size:13px;color:#666;margin-bottom:12px;">
-                    Receba alertas de preços e sinais diretamente no seu WhatsApp.
-                    <span v-if="dados.limites && !dados.limites.whatsapp" style="color:#f39c12;">
-                        (Disponível nos planos Pro e B3)
-                    </span>
-                </p>
-
-                <!-- Status do Gateway (APENAS ADMIN) -->
-                <div v-if="isAdmin" class="flex" style="margin-bottom:12px;">
-                    <span style="font-size:13px;color:#666;">Gateway WhatsApp:</span>
-                    <span :class="'status ' + statusGateway">{{ statusGatewayTexto }}</span>
-                </div>
-
-                <!-- QR Code (APENAS ADMIN quando desconectado) -->
-                <div v-if="isAdmin && qrUrl" class="qr-box">
-                    <p style="font-size:13px;color:#666;margin-bottom:10px;">
-                        📷 O gateway WhatsApp ainda não foi conectado.
-                    </p>
-                    <a :href="qrUrl" target="_blank" class="btn btn-primary">
-                        🔗 Abrir Painel para Conectar
-                    </a>
-                    <p style="font-size:12px;color:#999;margin-top:8px;">
-                        1. Abra o painel do WhatsApp Gateway<br>
-                        2. Clique na sessão <strong>farmer</strong><br>
-                        3. Escaneie o QR Code com seu WhatsApp<br>
-                        4. Volte aqui e clique em "Atualizar Status"
-                    </p>
-                    <div style="margin-top:8px;">
-                        <button class="btn btn-sm btn-secondary" @click="atualizarStatus">↻ Já Conectei! Verificar</button>
-                    </div>
-                </div>
-
-                <!-- Para usuários comuns: aviso simples -->
-                <div v-if="!isAdmin && statusGateway === 'online'" style="margin-bottom:12px;padding:10px;background:#d4edda;border-radius:8px;font-size:13px;color:#155724;">
-                    ✅ WhatsApp conectado! Cadastre seu número abaixo para receber alertas.
-                </div>
-
-                <!-- Número do usuário -->
-                <div class="campo">
-                    <label>Seu número de WhatsApp (para receber alertas)</label>
-                    <input type="tel" v-model="numeroInput" placeholder="5511999999999" maxlength="13">
-                    <div class="dica">Código do país + DDD + número. Ex: 5511999999999</div>
-                </div>
-                <div v-if="!isAdmin && dados.limites && !dados.limites.whatsapp" style="font-size:11px;color:#f39c12;margin-top:4px;">
-                    ⚠️ Alertas WhatsApp disponíveis nos planos Pro (R$ 29,90/mês) e B3 (R$ 99,90/mês)
-                </div>
-                <div class="flex">
-                    <button class="btn btn-primary btn-sm" @click="salvarNumero" :disabled="salvando">
-                        {{ salvando ? 'Salvando...' : '💾 Salvar Número' }}
-                    </button>
-                    <button class="btn btn-secondary btn-sm" @click="testarConexao" :disabled="!numeroSalvo || testando">
-                        {{ testando ? 'Enviando...' : '📨 Testar Mensagem' }}
-                    </button>
-                </div>
-                <div v-if="ultimoTeste" style="margin-top:8px;font-size:13px;" :style="{color: ultimoTesteStatus}">
-                    {{ ultimoTeste }}
-                </div>
-            </div>
+<div class="card" id="app">
+    <div id="tela-perguntas">
+        <h1>🔍 Seu Perfil de Operação</h1>
+        <div class="sub">
+            Responda 5 perguntas rápidas para personalizar o AgroSinal para você.
+            Seus alertas, dashboard e sinais serão ajustados ao seu perfil.
         </div>
+        <div class="progresso" id="progresso">Pergunta 1 de 5</div>
 
-        <!-- Toast -->
-        <div :class="'toast ' + toastClass" :class="{show: toastAtivo}">{{ toastMsg }}</div>
+        <div id="pergunta-container"></div>
+        <div class="erro" id="erro-msg">Selecione uma opção para continuar</div>
+        <button class="btn" id="btn-proximo" onclick="proximo()">Próximo →</button>
+        <button class="btn secundario" id="btn-pular" onclick="pular()" style="display:none;">
+            Pular, vou definir depois
+        </button>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script>
-    const { createApp, ref, onMounted, computed } = Vue;
-    createApp({
-        setup() {
-            const dados = ref({nome:'', email:'', plano:'gratis', limites:{}});
-            const numeroInput = ref('');
-            const numeroSalvo = ref('');
-            const qrUrl = ref(null);
-            const statusGateway = ref('na');
-            const salvando = ref(false);
-            const testando = ref(false);
-            const ultimoTeste = ref('');
-            const ultimoTesteStatus = ref('#2ecc71');
-            const toastMsg = ref('');
-            const toastAtivo = ref(false);
-            const toastClass = ref('toast-sucesso');
+    <div class="resultado" id="tela-resultado">
+        <div class="icone" id="resultado-icone"></div>
+        <h2 id="resultado-titulo"></h2>
+        <div class="desc" id="resultado-desc"></div>
+        <button class="btn" onclick="irDashboard()">✅ Ir para o Dashboard</button>
+        <button class="btn secundario" onclick="voltarPerguntas()">↩️ Responder novamente</button>
+    </div>
+</div>
 
-            const planoNome = computed(() => {
-                const nomes = { gratis:'Grátis', pro:'Pro', b3:'B3' };
-                return nomes[dados.value.plano] || dados.value.plano;
-            });
+<script>
+const PERGUNTAS = [
+    {
+        id: "q1",
+        texto: "Qual sua atividade principal?",
+        opcoes: [
+            { v: "a", label: "🧑‍🌾 Produzo milho/boi (produtor rural)" },
+            { v: "b", label: "📦 Compro e vendo físico (atravessador, frigorífico)" },
+            { v: "c", label: "📈 Opero contratos futuros na B3" },
+            { v: "d", label: "⚡ Faço day trade / operação curta" },
+            { v: "e", label: "🏭 Represento indústria/exportador (hedge)" },
+        ]
+    },
+    {
+        id: "q2",
+        texto: "Quando monta uma posição, quanto tempo geralmente fica nela?",
+        opcoes: [
+            { v: "a", label: "⏱️ Algumas horas / no máximo 1 dia" },
+            { v: "b", label: "📅 De 2 a 10 dias" },
+            { v: "c", label: "📆 De 10 a 30 dias" },
+            { v: "d", label: "🗓️ Mais de 30 dias" },
+            { v: "e", label: "👀 Não opero posição, só acompanho" },
+        ]
+    },
+    {
+        id: "q3",
+        texto: "O que te faria sair de uma operação?",
+        opcoes: [
+            { v: "a", label: "🟢 Perda de 1-2% — não gosto de risco" },
+            { v: "b", label: "🟡 Perda de 3-5% — aceito oscilar" },
+            { v: "c", label: "🟠 Perda de 5-10% — acreditava no movimento" },
+            { v: "d", label: "🔴 Só saio se o cenário mudar totalmente" },
+            { v: "e", label: "🤷 Não opero, só acompanho" },
+        ]
+    },
+    {
+        id: "q4",
+        texto: "Qual informação é mais importante pra você?",
+        opcoes: [
+            { v: "a", label: "📊 Preço e variação do dia" },
+            { v: "b", label: "📈 Tendência de curto prazo (3-10 dias)" },
+            { v: "c", label: "📉 Cenário de médio prazo (10-30 dias)" },
+            { v: "d", label: "🌾 Safra, clima, oferta/demanda" },
+            { v: "e", label: "💵 Dólar, CBOT, relação boi/milho" },
+        ]
+    },
+    {
+        id: "q5",
+        texto: "O que você espera do AgroSinal?",
+        opcoes: [
+            { v: "a", label: "💰 Saber o melhor momento de vender minha produção" },
+            { v: "b", label: "📦 Alertas pra comprar/vender físico no curto prazo" },
+            { v: "c", label: "📊 Sinais de entrada/saída pra operar na B3" },
+            { v: "d", label: "🧠 Cenário semanal com recomendações" },
+            { v: "e", label: "👁️ Acompanhar mercado, sem ação direta" },
+        ]
+    }
+];
 
-            const isAdmin = computed(() => dados.value.plano === 'admin');
+const PERFIS = {
+    produtor: {
+        icone: "🧑‍🌾",
+        titulo: "Produtor / Pecuarista",
+        desc: "Seu foco é proteger o preço da sua produção. Você receberá cenários de 30 a 90 dias, com alertas sobre clima, safra e as melhores janelas de venda. Menos barulho, mais estratégia."
+    },
+    fisico: {
+        icone: "📦",
+        titulo: "Físico (Comprador/Vendedor)",
+        desc: "Você vive do curto prazo no físico. Receberá alertas diários com preços DATAGRO/CEPEA, tendências de 5 a 10 dias, e informações sobre oferta e demanda regional."
+    },
+    swinger: {
+        icone: "📈",
+        titulo: "Swinger B3",
+        desc: "Você opera tendências nos contratos futuros. Terá AO VIVO com OHLC + Volume, força compradora, cenários de 10 a 30 dias, e setups de entrada com stop. Dados de CBOT e dólar em tempo real."
+    },
+    daytrade: {
+        icone: "⚡",
+        titulo: "Day Trade",
+        desc: "Você vive do intraday. Receberá dados AO VIVO atualizados a cada 15 min, volume por candle, força compradora em tempo real, e sinais de entrada/saída no dia."
+    },
+    hedger: {
+        icone: "🛡️",
+        titulo: "Hedger (Indústria/Exportador)",
+        desc: "Seu objetivo é se proteger da volatilidade. Receberá cenários de 30 a 180 dias, com análises de relação boi/milho, dólar, clima safra e recomendações de hedge."
+    }
+};
 
-            const statusGatewayTexto = computed(() => {
-                const map = { online: '🟢 Conectado', offline: '🔴 Desconectado', na: '⚪ Não configurado' };
-                return map[statusGateway.value] || '⚪ Indisponível';
-            });
+let atual = 0;
+let respostas = {};
+let calculando = false;
 
-            function mostrarToast(msg, tipo = 'sucesso') {
-                toastMsg.value = msg;
-                toastClass.value = tipo === 'sucesso' ? 'toast-sucesso' : 'toast-erro';
-                toastAtivo.value = true;
-                setTimeout(() => toastAtivo.value = false, 3000);
-            }
+function renderizar() {
+    const p = PERGUNTAS[atual];
+    const container = document.getElementById("pergunta-container");
+    const total = PERGUNTAS.length;
+    document.getElementById("progresso").textContent = `Pergunta ${atual+1} de ${total}`;
 
-            async function carregarPerfil() {
-                try {
-                    const r = await fetch('/api/auth/perfil');
-                    if (!r.ok) { window.location.href = '/'; return; }
-                    dados.value = await r.json();
-                    numeroInput.value = dados.value.whatsapp || '';
-                    numeroSalvo.value = dados.value.whatsapp || '';
-                } catch { window.location.href = '/'; }
-            }
+    let html = `<div class="pergunta"><div class="rotulo">PERGUNTA ${atual+1}</div>
+        <div class="texto">${p.texto}</div><div class="opcoes">`;
 
-            async function atualizarStatus() {
-                try {
-                    const r = await fetch('/api/auth/whatsapp/status');
-                    const data = await r.json();
-                    if (data.conectado)                     statusGateway.value = 'online';
-                    else if (data.erro) statusGateway.value = 'na';
-                    else statusGateway.value = 'offline';
-                    qrUrl.value = data.qr_url || null;
-                    if (data.numero && !numeroInput.value) {
-                        numeroInput.value = data.numero;
-                        numeroSalvo.value = data.numero;
-                    }
-                } catch { statusGateway.value = 'na'; }
-            }
+    for (const o of p.opcoes) {
+        const sel = respostas[p.id] === o.v ? " selecionada" : "";
+        html += `<label class="opcao${sel}">
+            <input type="radio" name="${p.id}" value="${o.v}"
+                ${respostas[p.id] === o.v ? "checked" : ""}
+                onchange="selecionar('${p.id}','${o.v}')">
+            ${o.label}
+        </label>`;
+    }
 
-            async function salvarNumero() {
-                if (!numeroInput.value.trim()) {
-                    mostrarToast('Digite um número', 'erro');
-                    return;
-                }
-                salvando.value = true;
-                try {
-                    const r = await fetch('/api/auth/whatsapp', {
-                        method: 'POST',
-                        headers: {'Content-Type':'application/json'},
-                        body: JSON.stringify({ numero: numeroInput.value })
-                    });
-                    if (r.ok) {
-                        numeroSalvo.value = numeroInput.value;
-                        mostrarToast('✅ Número salvo com sucesso!');
-                    } else {
-                        const err = await r.json();
-                        mostrarToast(err.detail || 'Erro ao salvar', 'erro');
-                    }
-                } catch { mostrarToast('Erro de conexão', 'erro'); }
-                salvando.value = false;
-            }
+    html += `</div></div>`;
+    container.innerHTML = html;
+    document.getElementById("erro-msg").style.display = "none";
 
-            async function testarConexao() {
-                testando.value = true;
-                ultimoTeste.value = '';
-                try {
-                    const r = await fetch('/api/auth/whatsapp/testar', { method: 'POST' });
-                    const data = await r.json();
-                    if (data.status === 'ok') {
-                        ultimoTeste.value = '✅ Mensagem teste enviada! Verifique seu WhatsApp.';
-                        ultimoTesteStatus.value = '#2ecc71';
-                    } else {
-                        ultimoTeste.value = '❌ Não foi possível enviar. Gateway offline?';
-                        ultimoTesteStatus.value = '#e74c3c';
-                    }
-                } catch {
-                    ultimoTeste.value = '❌ Erro de conexão';
-                    ultimoTesteStatus.value = '#e74c3c';
-                }
-                testando.value = false;
-            }
+    const btn = document.getElementById("btn-proximo");
+    if (atual === total - 1) {
+        btn.textContent = "✅ Ver meu perfil";
+    } else {
+        btn.textContent = "Próximo →";
+    }
 
-            async function alterarSenha() {
-                const nova = prompt('Digite a nova senha (mínimo 6 caracteres):');
-                if (!nova || nova.length < 6) return;
-                try {
-                    const r = await fetch('/api/auth/alterar-senha', {
-                        method: 'POST',
-                        headers: {'Content-Type':'application/json'},
-                        body: JSON.stringify({ senha: nova })
-                    });
-                    if (r.ok) mostrarToast('✅ Senha alterada!');
-                    else mostrarToast('Erro ao alterar senha', 'erro');
-                } catch { mostrarToast('Erro de conexão', 'erro'); }
-            }
+    // Mostra botão pular só na primeira pergunta
+    document.getElementById("btn-pular").style.display = atual === 0 ? "block" : "none";
+}
 
-            onMounted(async () => {
-                await carregarPerfil();
-                await atualizarStatus();
-            });
+function selecionar(id, valor) {
+    respostas[id] = valor;
+    // Re-renderiza pra mostrar seleção visual
+    renderizar();
+}
 
-            return { dados, numeroInput, numeroSalvo, qrUrl, statusGateway, salvando, testando,
-                     ultimoTeste, ultimoTesteStatus, planoNome, statusGatewayTexto, isAdmin,
-                     toastMsg, toastAtivo, toastClass,
-                     salvarNumero, testarConexao, atualizarStatus, alterarSenha };
-        }
-    }).mount('#app');
-    </script>
+function proximo() {
+    const p = PERGUNTAS[atual];
+    if (!respostas[p.id]) {
+        document.getElementById("erro-msg").style.display = "block";
+        return;
+    }
+    document.getElementById("erro-msg").style.display = "none";
+
+    if (atual < PERGUNTAS.length - 1) {
+        atual++;
+        renderizar();
+    } else {
+        // Todas respondidas — calcular perfil
+        if (calculando) return;
+        calculando = true;
+        const btn = document.getElementById("btn-proximo");
+        btn.disabled = true;
+        btn.textContent = "Calculando...";
+        calcularPerfil();
+    }
+}
+
+function pular() {
+    document.getElementById("tela-perguntas").style.display = "none";
+    const r = document.getElementById("tela-resultado");
+    r.style.display = "block";
+    document.getElementById("resultado-icone").textContent = "🌱";
+    document.getElementById("resultado-titulo").textContent = "Perfil não definido";
+    document.getElementById("resultado-desc").textContent = "Você pode definir seu perfil depois a qualquer momento nas configurações da sua conta. Enquanto isso, você verá o dashboard padrão.";
+}
+
+async function calcularPerfil() {
+    try {
+        const r = await fetch("/api/auth/perfil/salvar", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ respostas })
+        });
+        const data = await r.json();
+        if (data.status !== "ok") throw new Error(data.detail || "Erro");
+
+        const perfil = PERFIS[data.perfil];
+        document.getElementById("tela-perguntas").style.display = "none";
+        const tela = document.getElementById("tela-resultado");
+        tela.style.display = "block";
+        document.getElementById("resultado-icone").textContent = perfil.icone;
+        document.getElementById("resultado-titulo").textContent = perfil.titulo;
+        document.getElementById("resultado-desc").textContent = perfil.desc;
+    } catch (e) {
+        document.getElementById("erro-msg").textContent = "Erro ao salvar. Tente novamente.";
+        document.getElementById("erro-msg").style.display = "block";
+        calculando = false;
+        document.getElementById("btn-proximo").disabled = false;
+        document.getElementById("btn-proximo").textContent = "✅ Ver meu perfil";
+    }
+}
+
+function irDashboard() {
+    window.location.href = "/dashboard";
+}
+
+function voltarPerguntas() {
+    atual = 0;
+    respostas = {};
+    calculando = false;
+    document.getElementById("tela-resultado").style.display = "none";
+    document.getElementById("tela-perguntas").style.display = "block";
+    document.getElementById("btn-proximo").disabled = false;
+    renderizar();
+}
+
+renderizar();
+</script>
 </body>
 </html>

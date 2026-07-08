@@ -305,7 +305,9 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
                     dados_clima: list, alertas: list,
                     output_path: str = None,
                     usuario_id: int | None = None,
-                    dados_datagro: dict | None = None) -> str:
+                    dados_datagro: dict | None = None,
+                    perfil: str = "",
+                    nome_perfil: str = "") -> str:
     """Gera o dashboard HTML completo."""
     hoje = date.today().strftime("%d/%m/%Y")
     registros = banco.pegar_ultimos_precos(60)
@@ -375,6 +377,23 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
         alerta_badge = f'<span class="alerta-badge alerta-badge-critico">🔴 {alerta_count_prioritario} prioritário(s)</span>'
     else:
         alerta_badge = '<span class="alerta-badge alerta-badge-ok">✅ Sem alertas críticos</span>'
+
+    # ─── Perfil do usuário ──────────────────────────────────
+    emoji_perfil = {"produtor":"🧑‍🌾","fisico":"📦","swinger":"📈","daytrade":"⚡","hedger":"🛡️"}
+    if perfil and perfil in emoji_perfil:
+        e = emoji_perfil[perfil]
+        perfil_badge = f'<span style="color:white;font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,0.18);white-space:nowrap;">{e} {nome_perfil.split("(")[0].strip()}</span>'
+        perfil_banner = ""
+    else:
+        perfil_badge = ""
+        perfil_banner = f'''
+        <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:12px;padding:12px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border:1px solid #ffcc80;">
+            <div style="font-size:13px;color:#e65100;">
+                🎯 <strong>Defina seu perfil</strong> para receber alertas personalizados
+            </div>
+            <a href="/perfil" style="background:#e65100;color:white;padding:8px 20px;border-radius:20px;text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;">
+                Responder →</a>
+        </div>'''
 
     # ─── AO VIVO: OHLC + Volume (Yahoo intraday) ──────────────
     b3_atualizado = "—"
@@ -502,10 +521,13 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
             </div>
             <div class="header-actions">
                 {alerta_badge}
+                {perfil_badge}
                 <a href="/minha-conta" style="color:white;font-size:13px;text-decoration:none;opacity:.9;">⚙️ Conta</a>
                 <a href="/" style="color:white;font-size:13px;text-decoration:none;opacity:.8;">← Sair</a>
             </div>
         </div>
+
+        {perfil_banner}
 
         <div class="grid">
             <div class="card">

@@ -353,10 +353,51 @@ async def whatsapp_testar(usuario=Depends(pegar_usuario_atual)):
     return {"status": "ok" if ok else "erro"}
 
 
+# ─── Perfil do Usuário ─────────────────────────────────────
+
+@app.get("/api/auth/perfil-info")
+async def perfil_info(usuario=Depends(pegar_usuario_atual)):
+    """Retorna dados do perfil do usuário."""
+    from dados.banco import pegar_perfil, PERFIL_NOMES
+    perfil = pegar_perfil(usuario[0])
+    return {
+        "perfil": perfil,
+        "nome_perfil": PERFIL_NOMES.get(perfil, "Não definido"),
+        "tem_perfil": bool(perfil),
+        "perfis_disponiveis": PERFIL_NOMES,
+    }
+
+
+@app.post("/api/auth/perfil/salvar")
+async def perfil_salvar(dados: dict, usuario=Depends(pegar_usuario_atual)):
+    """Salva o perfil calculado ou manual do usuário."""
+    from dados.banco import salvar_perfil, calcular_perfil
+    respostas = dados.get("respostas", {})
+    # Se veio perfil direto, usa ele; senão calcula das respostas
+    perfil = dados.get("perfil", "")
+    if not perfil and respostas:
+        perfil = calcular_perfil(respostas)
+    if not perfil:
+        raise HTTPException(status_code=400, detail="Informe respostas ou perfil")
+    ok = salvar_perfil(usuario[0], perfil)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Perfil inválido. Use: produtor, fisico, swinger, daytrade, hedger")
+    return {"status": "ok", "perfil": perfil, "mensagem": f"Perfil definido!"}
+
+
 # ─── Minha Conta (página de perfil/configurações) ──────────
 
 @app.get("/minha-conta", response_class=HTMLResponse)
 async def minha_conta(usuario=Depends(pegar_usuario_atual)):
+    caminho = Path(__file__).parent / "perfil.html"
+    if caminho.exists():
+        return caminho.read_text(encoding="utf-8")
+    return "<h1>Página não encontrada</h1>"
+
+
+@app.get("/perfil", response_class=HTMLResponse)
+async def pagina_perfil(usuario=Depends(pegar_usuario_atual)):
+    """Página do questionário de perfil."""
     caminho = Path(__file__).parent / "perfil.html"
     if caminho.exists():
         return caminho.read_text(encoding="utf-8")
@@ -368,12 +409,17 @@ async def minha_conta(usuario=Depends(pegar_usuario_atual)):
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(usuario=Depends(pegar_usuario_atual)):
     from dashboard import gerar
+    from dados.banco import pegar_perfil, PERFIL_NOMES
+    perfil = pegar_perfil(usuario[0])
+    nome_perfil = PERFIL_NOMES.get(perfil, "")
     html = gerar.gerar_dashboard(
         cache["dados_precos"], cache["dados_cepea"],
         cache["dados_clima"], cache["alertas"],
         output_path=str(DASHBOARD_HTML),
         usuario_id=usuario[0],
         dados_datagro=cache.get("dados_datagro"),
+        perfil=perfil,
+        nome_perfil=nome_perfil,
     )
     # Adiciona link pro histórico no HTML final
     link_hist = '<a href="/dashboard/historico" style="color:white;font-size:12px;text-decoration:none;padding:5px 10px;border-radius:20px;background:rgba(255,255,255,0.12);">📜 Histórico</a>'

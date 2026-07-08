@@ -22,6 +22,7 @@ def criar_tabelas():
                 plano TEXT DEFAULT 'gratis',
                 stripe_id TEXT,
                 whatsapp TEXT,
+                perfil TEXT DEFAULT '',
                 criado_em TEXT DEFAULT (datetime('now','localtime')),
                 ultimo_login TEXT
             );
@@ -174,6 +175,77 @@ def atualizar_whatsapp(usuario_id: int, whatsapp: str):
     with conectar() as conn:
         conn.execute("UPDATE usuarios SET whatsapp = ? WHERE id = ?",
                      (whatsapp, usuario_id))
+
+
+# ─── Perfil do usuário ─────────────────────────────────────
+
+PERFIS = ["produtor", "fisico", "swinger", "daytrade", "hedger"]
+
+PERFIL_NOMES = {
+    "produtor": "🧑‍🌾 Produtor / Pecuarista",
+    "fisico": "📦 Físico (Comprador/Vendedor)",
+    "swinger": "📈 Swinger B3",
+    "daytrade": "⚡ Day Trade",
+    "hedger": "🛡️ Hedger (Indústria/Exportador)",
+}
+
+def salvar_perfil(usuario_id: int, perfil: str) -> bool:
+    if perfil not in PERFIS:
+        return False
+    with conectar() as conn:
+        # Migração segura: add coluna se não existir
+        try:
+            conn.execute("SELECT perfil FROM usuarios LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE usuarios ADD COLUMN perfil TEXT DEFAULT ''")
+        conn.execute("UPDATE usuarios SET perfil = ? WHERE id = ?", (perfil, usuario_id))
+    return True
+
+def pegar_perfil(usuario_id: int) -> str:
+    with conectar() as conn:
+        row = conn.execute("SELECT perfil FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+        return row[0] if row and row[0] else ""
+
+def calcular_perfil(respostas: dict) -> str:
+    """Calcula perfil baseado nas respostas do questionário."""
+    pesos = {
+        "produtor": 0, "fisico": 0, "swinger": 0,
+        "daytrade": 0, "hedger": 0,
+    }
+    # Mapa de pontuação por pergunta/resposta
+    mapa = {
+        "q1": {"a": {"produtor": 3, "hedger": 1},
+               "b": {"fisico": 3, "swinger": 1},
+               "c": {"swinger": 3, "daytrade": 2},
+               "d": {"daytrade": 3, "swinger": 1},
+               "e": {"hedger": 3, "produtor": 1}},
+        "q2": {"a": {"daytrade": 3},
+               "b": {"fisico": 2, "daytrade": 2, "swinger": 1},
+               "c": {"swinger": 3, "hedger": 1},
+               "d": {"produtor": 3, "hedger": 3},
+               "e": {"produtor": 2, "fisico": 1}},
+        "q3": {"a": {"produtor": 3, "hedger": 2},
+               "b": {"fisico": 2, "swinger": 2},
+               "c": {"swinger": 3, "daytrade": 3},
+               "d": {"hedger": 3, "swinger": 2, "daytrade": 2},
+               "e": {"produtor": 2, "fisico": 1}},
+        "q4": {"a": {"daytrade": 2},
+               "b": {"fisico": 2, "swinger": 1},
+               "c": {"swinger": 2, "hedger": 1},
+               "d": {"produtor": 3, "hedger": 2},
+               "e": {"fisico": 2, "swinger": 2}},
+        "q5": {"a": {"produtor": 3},
+               "b": {"fisico": 3},
+               "c": {"swinger": 3, "daytrade": 2},
+               "d": {"hedger": 2, "swinger": 1},
+               "e": {"produtor": 1, "fisico": 1}},
+    }
+    for q, alt in respostas.items():
+        if q in mapa and alt in mapa[q]:
+            for perfil, pts in mapa[q][alt].items():
+                pesos[perfil] = pesos.get(perfil, 0) + pts
+    # Retorna o perfil com maior pontuação
+    return max(pesos, key=pesos.get)
 
 def alterar_senha(usuario_id: int, senha_hash: str):
     with conectar() as conn:
