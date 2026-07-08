@@ -203,8 +203,12 @@ def salvar_perfil(usuario_id: int, perfil: str) -> bool:
 
 def pegar_perfil(usuario_id: int) -> str:
     with conectar() as conn:
-        row = conn.execute("SELECT perfil FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
-        return row[0] if row and row[0] else ""
+        try:
+            row = conn.execute("SELECT perfil FROM usuarios WHERE id = ?", (usuario_id,)).fetchone()
+            return row[0] if row and row[0] else ""
+        except sqlite3.OperationalError:
+            # Coluna perfil ainda não existe — migração
+            return ""
 
 def calcular_perfil(respostas: dict) -> str:
     """Calcula perfil baseado nas respostas do questionário."""
