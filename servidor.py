@@ -176,9 +176,15 @@ async def coleta_completa() -> dict:
     # Envia alertas prioritários para cada usuário com WhatsApp
     from alerta import enviar
     from alerta.formatar import formatar_alerta_whatsapp
+    # Busca dados AO VIVO para incluir nos alertas
+    from coletores import b3_ao_vivo
+    try:
+        ao_vivo_cache = b3_ao_vivo.coletar_todos()
+    except Exception:
+        ao_vivo_cache = None
     usuarios_wa = banco.pegar_usuarios_com_whatsapp()
     for a in (a for a in alertas if a.get("confianca") == "alta"):
-        msg = formatar_alerta_whatsapp(a)
+        msg = formatar_alerta_whatsapp(a, ao_vivo=ao_vivo_cache)
         # Sempre envia pro número fixo (admin)
         enviar.enviar_mensagem(msg)
         # Envia pra cada usuário que tem WhatsApp
