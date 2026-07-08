@@ -3,7 +3,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AgroSinal — Sinais para o Agronegócio</title>
-<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -30,9 +29,9 @@ header nav a:hover{text-decoration:underline}
 .plan .price small{font-size:1rem;font-weight:400;color:#666}
 .plan ul{list-style:none;padding:0;margin:1.5rem 0;text-align:left;flex:1}
 .plan ul li{padding:.4rem 0;display:flex;align-items:center;gap:.5rem}
-.plan ul li::before{content:"✓";color:#2d8a4e;font-weight:700}
+.plan ul li::before{content:"\2713";color:#2d8a4e;font-weight:700}
 .plan ul li.nao{opacity:.4}
-.plan ul li.nao::before{content:"✗";color:#999}
+.plan ul li.nao::before{content:"\2717";color:#999}
 .plan .btn{background:#1a5c2a;color:#fff;margin-top:auto}
 .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem;margin-top:2rem}
 .feature{background:#fff;border-radius:12px;padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,.08);text-align:center}
@@ -48,6 +47,8 @@ header nav a:hover{text-decoration:underline}
 .modal .close{position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#999}
 .modal .close:hover{color:#333}
 .erro{color:#dc3545;font-size:.85rem;margin-bottom:.5rem;display:none}
+.erro.show{display:block}
+.loading{opacity:.6;pointer-events:none}
 footer{text-align:center;padding:2rem;color:#666;font-size:.85rem}
 @media(max-width:600px){
 header{padding:.8rem 1rem;flex-wrap:wrap;gap:.5rem}
@@ -68,12 +69,13 @@ header nav a{margin-left:0;margin-right:1rem;font-size:.8rem}
 .modal{padding:1.5rem;width:95%}}
 </style>
 </head><body>
+
 <header>
   <h1>🌱 AgroSinal</h1>
   <nav>
-    <a @click="scrollTo('planos')">Planos</a>
-    <a @click="abrirModal('login')">Entrar</a>
-    <a @click="abrirModal('registro')">Cadastrar</a>
+    <a onclick="scrollToId('planos')">Planos</a>
+    <a onclick="abrirModal('login')">Entrar</a>
+    <a onclick="abrirModal('registro')">Cadastrar</a>
   </nav>
 </header>
 
@@ -81,7 +83,7 @@ header nav a{margin-left:0;margin-right:1rem;font-size:.8rem}
   <h2>Sinais inteligentes para o agro</h2>
   <p>Acompanhe milho, boi gordo, dólar e clima em tempo real. Decisões baseadas em dados para proteger sua margem.</p>
   <div>
-    <button class="btn btn-primary" @click="abrirModal('registro')">Começar Grátis</button>
+    <button class="btn btn-primary" onclick="abrirModal('registro')">Começar Grátis</button>
     <a href="/precos" class="btn btn-outline">Ver Preços</a>
   </div>
 </section>
@@ -99,7 +101,7 @@ header nav a{margin-left:0;margin-right:1rem;font-size:.8rem}
         <li class="nao">Dados climáticos</li>
         <li class="nao">Suporte prioritário</li>
       </ul>
-      <button class="btn" @click="abrirModal('registro')">Cadastrar</button>
+      <button class="btn" onclick="abrirModal('registro')">Cadastrar</button>
     </div>
     <div class="plan featured">
       <h4>Pro</h4>
@@ -111,7 +113,7 @@ header nav a{margin-left:0;margin-right:1rem;font-size:.8rem}
         <li>Dados climáticos</li>
         <li class="nao">Suporte prioritário</li>
       </ul>
-      <button class="btn" @click="abrirModal('registro')">Assinar</button>
+      <button class="btn" onclick="abrirModal('registro')">Assinar</button>
     </div>
     <div class="plan">
       <h4>B3</h4>
@@ -123,7 +125,7 @@ header nav a{margin-left:0;margin-right:1rem;font-size:.8rem}
         <li>Dados climáticos</li>
         <li>Suporte prioritário</li>
       </ul>
-      <button class="btn" @click="abrirModal('registro')">Assinar</button>
+      <button class="btn" onclick="abrirModal('registro')">Assinar</button>
     </div>
   </div>
 </section>
@@ -139,65 +141,119 @@ header nav a{margin-left:0;margin-right:1rem;font-size:.8rem}
 </section>
 
 <!-- Modal -->
-<div class="modal-overlay" :class="{active:modalAtivo}" @click.self="fecharModal">
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)fecharModal()">
   <div class="modal">
-    <button class="close" @click="fecharModal">&times;</button>
-    <h3 v-if="modo==='login'">Entrar</h3>
-    <h3 v-else>Criar Conta</h3>
-    <div class="erro" v-if="erro">{{erro}}</div>
-    <template v-if="modo==='login'">
-      <input type="email" v-model="email" placeholder="Email" @keyup.enter="login">
-      <input type="password" v-model="senha" placeholder="Senha" @keyup.enter="login">
-      <button class="btn" style="background:#1a5c2a;color:#fff" @click="login">Entrar</button>
-      <div class="toggle" @click="modo='registro'">Não tem conta? Cadastre-se</div>
-    </template>
-    <template v-else>
-      <input type="text" v-model="nome" placeholder="Nome" @keyup.enter="registrar">
-      <input type="email" v-model="email" placeholder="Email" @keyup.enter="registrar">
-      <input type="password" v-model="senha" placeholder="Senha (mín. 6 caracteres)" @keyup.enter="registrar">
-      <button class="btn" style="background:#1a5c2a;color:#fff" @click="registrar">Cadastrar</button>
-      <div class="toggle" @click="modo='login'">Já tem conta? Entre</div>
-    </template>
+    <button class="close" onclick="fecharModal()">&times;</button>
+    <h3 id="modal-titulo">Entrar</h3>
+    <div class="erro" id="modal-erro"></div>
+
+    <!-- Login -->
+    <div id="form-login">
+      <input type="email" id="login-email" placeholder="Email" onkeydown="if(event.key==='Enter')login()">
+      <input type="password" id="login-senha" placeholder="Senha" onkeydown="if(event.key==='Enter')login()">
+      <button class="btn" id="btn-login" style="background:#1a5c2a;color:#fff" onclick="login()">Entrar</button>
+      <div class="toggle" onclick="mostrarRegistro()">Não tem conta? Cadastre-se</div>
+    </div>
+
+    <!-- Registro -->
+    <div id="form-registro" style="display:none">
+      <input type="text" id="reg-nome" placeholder="Nome" onkeydown="if(event.key==='Enter')registrar()">
+      <input type="email" id="reg-email" placeholder="Email" onkeydown="if(event.key==='Enter')registrar()">
+      <input type="password" id="reg-senha" placeholder="Senha (mín. 6 caracteres)" onkeydown="if(event.key==='Enter')registrar()">
+      <button class="btn" id="btn-reg" style="background:#1a5c2a;color:#fff" onclick="registrar()">Cadastrar</button>
+      <div class="toggle" onclick="mostrarLogin()">Já tem conta? Entre</div>
+    </div>
   </div>
 </div>
 
 <footer>
-  <p>AgroSinal — Dados para decisões no agronegócio. © 2026</p>
+  <p>AgroSinal — Dados para decisões no agronegócio. &copy; 2026</p>
 </footer>
 
 <script>
-const {createApp} = Vue;
-createApp({
-  data(){return{
-    modalAtivo:false, modo:'login',
-    email:'',senha:'',nome:'',erro:''
-  }},
-  methods:{
-    abrirModal(modo){this.modo=modo;this.modalAtivo=true;this.erro=''},
-    fecharModal(){this.modalAtivo=false;this.erro=''},
-    scrollTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'})},
-    async login(){
-      const r = await fetch('/api/auth/login',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email:this.email,senha:this.senha})
-      });
-      const d = await r.json();
-      if(!r.ok){this.erro=d.detail;return}
-      localStorage.setItem('token',d.token);
-      window.location.href='/dashboard';
-    },
-    async registrar(){
-      if(this.senha.length<6){this.erro='Senha deve ter no mínimo 6 caracteres';return}
-      const r = await fetch('/api/auth/registrar',{
-        method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email:this.email,nome:this.nome,senha:this.senha})
-      });
-      const d = await r.json();
-      if(!r.ok){this.erro=d.detail;return}
-      localStorage.setItem('token',d.token);
-      window.location.href='/dashboard';
-    }
+function $(id){return document.getElementById(id)}
+
+function abrirModal(modo){
+  $('modal-overlay').classList.add('active');
+  if(modo==='login') mostrarLogin();
+  else mostrarRegistro();
+}
+
+function fecharModal(){
+  $('modal-overlay').classList.remove('active');
+  $('modal-erro').textContent='';
+  $('modal-erro').classList.remove('show');
+}
+
+function mostrarLogin(){
+  $('modal-titulo').textContent='Entrar';
+  $('form-login').style.display='block';
+  $('form-registro').style.display='none';
+  $('modal-erro').textContent='';
+  $('modal-erro').classList.remove('show');
+}
+
+function mostrarRegistro(){
+  $('modal-titulo').textContent='Criar Conta';
+  $('form-login').style.display='none';
+  $('form-registro').style.display='block';
+  $('modal-erro').textContent='';
+  $('modal-erro').classList.remove('show');
+}
+
+function mostrarErro(msg){
+  $('modal-erro').textContent=msg;
+  $('modal-erro').classList.add('show');
+}
+
+function scrollToId(id){
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+}
+
+async function login(){
+  var email=$('login-email').value.trim();
+  var senha=$('login-senha').value;
+  if(!email||!senha){mostrarErro('Preencha email e senha');return}
+  $('btn-login').classList.add('loading');
+  $('btn-login').textContent='Entrando...';
+  try{
+    var r=await fetch('/api/auth/login',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:email,senha:senha})
+    });
+    var d=await r.json();
+    if(!r.ok){mostrarErro(d.detail||'Erro ao fazer login');$('btn-login').classList.remove('loading');$('btn-login').textContent='Entrar';return}
+    localStorage.setItem('token',d.token);
+    window.location.href='/dashboard';
+  }catch(e){
+    mostrarErro('Erro de conexão. Tente novamente.');
+    $('btn-login').classList.remove('loading');
+    $('btn-login').textContent='Entrar';
   }
-}).mount('body');
+}
+
+async function registrar(){
+  var nome=$('reg-nome').value.trim();
+  var email=$('reg-email').value.trim();
+  var senha=$('reg-senha').value;
+  if(!nome||!email||!senha){mostrarErro('Preencha todos os campos');return}
+  if(senha.length<6){mostrarErro('Senha deve ter no mínimo 6 caracteres');return}
+  $('btn-reg').classList.add('loading');
+  $('btn-reg').textContent='Cadastrando...';
+  try{
+    var r=await fetch('/api/auth/registrar',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:email,nome:nome,senha:senha})
+    });
+    var d=await r.json();
+    if(!r.ok){mostrarErro(d.detail||'Erro ao cadastrar');$('btn-reg').classList.remove('loading');$('btn-reg').textContent='Cadastrar';return}
+    localStorage.setItem('token',d.token);
+    window.location.href='/dashboard';
+  }catch(e){
+    mostrarErro('Erro de conexão. Tente novamente.');
+    $('btn-reg').classList.remove('loading');
+    $('btn-reg').textContent='Cadastrar';
+  }
+}
 </script>
 </body></html>
