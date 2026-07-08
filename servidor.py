@@ -184,14 +184,17 @@ async def coleta_completa() -> dict:
         ao_vivo_cache = None
     usuarios_wa = banco.pegar_usuarios_com_whatsapp()
     for a in (a for a in alertas if a.get("confianca") == "alta"):
-        msg = formatar_alerta_whatsapp(a, ao_vivo=ao_vivo_cache)
-        # Sempre envia pro número fixo (admin)
-        enviar.enviar_mensagem(msg)
-        # Envia pra cada usuário que tem WhatsApp
-        for uid, unome, uwa, uplano in usuarios_wa:
+        # Sempre envia pro número fixo (admin) sem lente de perfil
+        msg_admin = formatar_alerta_whatsapp(a, ao_vivo=ao_vivo_cache, perfil=None)
+        enviar.enviar_mensagem(msg_admin)
+        # Envia pra cada usuário com sua lente de perfil
+        for u in usuarios_wa:
+            uid, unome, uwa, uplano = u[:4]
+            uperfil = u[4] if len(u) > 4 else ""
             plano_config = PLANOS.get(uplano, PLANOS["gratis"])
             if plano_config.get("whatsapp") and uwa:
-                enviar.enviar_mensagem(msg, uwa)
+                msg_user = formatar_alerta_whatsapp(a, ao_vivo=ao_vivo_cache, perfil=uperfil)
+                enviar.enviar_mensagem(msg_user, uwa)
     cache["dados_precos"] = dados_precos
     cache["dados_cepea"] = cepea_dados
     cache["dados_fisicos"] = fisicos_dados

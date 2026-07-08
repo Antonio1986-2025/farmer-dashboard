@@ -254,11 +254,17 @@ def alterar_senha(usuario_id: int, senha_hash: str):
 
 def pegar_usuarios_com_whatsapp() -> list:
     with conectar() as conn:
+        # Migração segura: add coluna perfil se não existir
+        try:
+            conn.execute("SELECT perfil FROM usuarios LIMIT 1")
+            cols = "id, nome, whatsapp, plano, perfil"
+        except sqlite3.OperationalError:
+            cols = "id, nome, whatsapp, plano"
         rows = conn.execute(
-            "SELECT id, nome, whatsapp, plano FROM usuarios "
+            f"SELECT {cols} FROM usuarios "
             "WHERE whatsapp IS NOT NULL AND whatsapp != ''"
         ).fetchall()
-        return rows
+        return [list(r) for r in rows]
 
 def contar_sinais_usuario(usuario_id: int, dias: int = 30) -> int:
     with conectar() as conn:
