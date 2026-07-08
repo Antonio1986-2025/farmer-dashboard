@@ -474,6 +474,29 @@ async def api_datagro():
         }
     return {"data": None, "media_nacional": None, "estados": {}}
 
+
+# ─── API AO VIVO (OHLC + Volume intraday) ─────────────────────
+
+@app.get("/api/b3-ao-vivo")
+async def api_b3_ao_vivo():
+    """Retorna dados AO VIVO dos ativos: OHLC + Volume do pregão."""
+    from coletores import b3_ao_vivo
+    dados = b3_ao_vivo.coletar_todos()
+    # Enriquece boi com dados do Datagro
+    datagro = cache.get("dados_datagro", {})
+    if datagro and datagro.get("_media_nacional"):
+        dados["boi_b3"] = {
+            "disponivel": True, "nome": "Boi Gordo DATAGRO",
+            "atual": round(datagro["_media_nacional"], 2),
+            "abertura": None, "maxima": datagro.get("_maximo"),
+            "minima": datagro.get("_minimo"),
+            "variacao": None, "sinal_variacao": "―",
+            "volume_total": 0, "volume_subida": 0, "volume_descida": 0,
+            "forca_compradora": 50.0, "candles": 0, "atualizado_em": "-",
+        }
+    return dados
+
+
 @app.post("/api/coletar")
 async def api_coletar():
     """Dispara coleta em background e retorna imediatamente."""

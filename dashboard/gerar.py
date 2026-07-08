@@ -376,6 +376,31 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
     else:
         alerta_badge = '<span class="alerta-badge alerta-badge-ok">✅ Sem alertas críticos</span>'
 
+    # ─── AO VIVO: OHLC + Volume (Yahoo intraday) ──────────────
+    b3_atualizado = "—"
+    cbot_ohlc = {"abertura":"—","maxima":"—","minima":"—","atual":"—","sinal_variacao":"―","variacao":None}
+    cbot_vol = "—"
+    cbot_forca = 50
+    dolar_ohlc = {"abertura":"—","maxima":"—","minima":"—","atual":"—","sinal_variacao":"―","variacao":None}
+    dolar_vol = "—"
+    dolar_forca = 50
+    try:
+        from coletores import b3_ao_vivo
+        b3 = b3_ao_vivo.coletar_todos()
+        b3_atualizado = b3.get("atualizado_em","")
+        if b3.get("cbot",{}).get("disponivel"):
+            cbot_ohlc = b3["cbot"]
+            cv = b3["cbot"].get("volume_total",0)
+            cbot_vol = f"{cv:,}" if cv else "—"
+            cbot_forca = b3["cbot"].get("forca_compradora",50)
+        if b3.get("dolar",{}).get("disponivel"):
+            dolar_ohlc = b3["dolar"]
+            dv = b3["dolar"].get("volume_total",0)
+            dolar_vol = f"{dv:,}" if dv else "—"
+            dolar_forca = b3["dolar"].get("forca_compradora",50)
+    except Exception as e:
+        pass
+
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -506,6 +531,88 @@ def gerar_dashboard(dados_precos: dict, dados_cepea: dict,
                 <div class="valor">{'R$ ' + cepea_boi if cepea_boi != '—' else '—'}</div>
                 <div class="variacao green">Físico (R$/@) — Média nacional</div>
                 <div class="resumo">{'Indicador do Boi DATAGRO — referência oficial da B3' if tem_datagro else 'Indisponível hoje'}</div>
+            </div>
+        </div>
+
+        <!-- 🔴 AO VIVO — CBOT Milho -->
+        <div class="card" style="border-left:3px solid #e74c3c;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <h3 style="text-transform:none;letter-spacing:0;">🔴 AO VIVO — CBOT Milho</h3>
+                <span style="font-size:10px;color:#999;">▲ sobe ▼ desce</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:6px;">
+                <div><span style="font-size:9px;color:#888;">Abertura</span><div style="font-size:16px;font-weight:700;">{cbot_ohlc.get("abertura","—")}</div></div>
+                <div><span style="font-size:9px;color:#888;">Máxima</span><div style="font-size:16px;font-weight:700;color:#e74c3c;">{cbot_ohlc.get("maxima","—")}</div></div>
+                <div><span style="font-size:9px;color:#888;">Mínima</span><div style="font-size:16px;font-weight:700;color:#2ecc71;">{cbot_ohlc.get("minima","—")}</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding-top:6px;border-top:1px solid #eee;">
+                <div>
+                    <span style="font-size:9px;color:#888;">Atual</span>
+                    <div style="font-size:18px;font-weight:800;">{cbot_ohlc.get("atual","—")} <span style="font-size:12px;color:{'#e74c3c' if str(cbot_ohlc.get('sinal_variacao','')) == '▲' else '#2ecc71' if str(cbot_ohlc.get('sinal_variacao','')) == '▼' else '#888'};"}}>{cbot_ohlc.get("sinal_variacao","―")} {cbot_ohlc.get("variacao","")}{'%' if cbot_ohlc.get("variacao") is not None else ''}</span></div>
+                </div>
+                <div>
+                    <span style="font-size:9px;color:#888;">Volume</span>
+                    <div style="font-size:16px;font-weight:700;">{cbot_vol}</div>
+                </div>
+            </div>
+            <div style="font-size:10px;color:#999;margin-top:6px;padding-top:4px;border-top:1px solid #eee;">
+                ▲ subida: {cbot_ohlc.get("volume_subida","0")} contratos &nbsp;|&nbsp; ▼ descida: {cbot_ohlc.get("volume_descida","0")} contratos
+                <span style="float:right;">🕐 {cbot_ohlc.get("atualizado_em","")}</span>
+            </div>
+            <div style="margin-top:4px;height:4px;background:#eee;border-radius:2px;">
+                <div style="height:4px;border-radius:2px;background:linear-gradient(90deg,#2ecc71,#f39c12,#e74c3c);width:{cbot_forca}%;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:#999;margin-top:2px;">
+                <span>100% venda</span>
+                <span style="font-weight:600;">Força: {cbot_forca}%</span>
+                <span>100% compra</span>
+            </div>
+        </div>
+
+        <!-- 🔴 AO VIVO — Dólar -->
+        <div class="card" style="border-left:3px solid #e74c3c;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <h3 style="text-transform:none;letter-spacing:0;">🔴 AO VIVO — Dólar</h3>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:6px;">
+                <div><span style="font-size:9px;color:#888;">Abertura</span><div style="font-size:16px;font-weight:700;">{dolar_ohlc.get("abertura","—")}</div></div>
+                <div><span style="font-size:9px;color:#888;">Máxima</span><div style="font-size:16px;font-weight:700;color:#e74c3c;">{dolar_ohlc.get("maxima","—")}</div></div>
+                <div><span style="font-size:9px;color:#888;">Mínima</span><div style="font-size:16px;font-weight:700;color:#2ecc71;">{dolar_ohlc.get("minima","—")}</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding-top:6px;border-top:1px solid #eee;">
+                <div>
+                    <span style="font-size:9px;color:#888;">Atual</span>
+                    <div style="font-size:18px;font-weight:800;">{dolar_ohlc.get("atual","—")} <span style="font-size:12px;color:{'#e74c3c' if str(dolar_ohlc.get('sinal_variacao','')) == '▲' else '#2ecc71' if str(dolar_ohlc.get('sinal_variacao','')) == '▼' else '#888'};"}}>{dolar_ohlc.get("sinal_variacao","―")} {dolar_ohlc.get("variacao","")}{'%' if dolar_ohlc.get("variacao") is not None else ''}</span></div>
+                </div>
+                <div>
+                    <span style="font-size:9px;color:#888;">Volume</span>
+                    <div style="font-size:16px;font-weight:700;">{dolar_vol}</div>
+                </div>
+            </div>
+            <div style="font-size:10px;color:#999;margin-top:6px;padding-top:4px;border-top:1px solid #eee;">
+                ▲ subida: {dolar_ohlc.get("volume_subida","0")} &nbsp;|&nbsp; ▼ descida: {dolar_ohlc.get("volume_descida","0")}
+                <span style="float:right;">🕐 {dolar_ohlc.get("atualizado_em","")}</span>
+            </div>
+            <div style="margin-top:4px;height:4px;background:#eee;border-radius:2px;">
+                <div style="height:4px;border-radius:2px;background:linear-gradient(90deg,#2ecc71,#f39c12,#e74c3c);width:{dolar_forca}%;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:#999;margin-top:2px;">
+                <span>100% queda</span>
+                <span style="font-weight:600;">Força: {dolar_forca}%</span>
+                <span>100% alta</span>
+            </div>
+        </div>
+
+        <!-- 🔴 AO VIVO — Legenda -->
+        <div class="card card-full" style="border-left:3px solid #e74c3c;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <h3 style="text-transform:none;letter-spacing:0;">🔴 AO VIVO — Resumo</h3>
+                <span style="font-size:10px;color:#999;">🕐 {b3_atualizado}</span>
+            </div>
+            <div style="font-size:10px;color:#888;line-height:1.5;">
+                🔄 Dados com ~15 min de atraso (Yahoo Finance). Volume = contratos negociados.
+                Força compradora mostra % do volume total que ocorreu em candles de <strong>subida</strong>.
+                &gt;60% = pressão compradora. &lt;40% = pressão vendedora.
             </div>
         </div>
 
