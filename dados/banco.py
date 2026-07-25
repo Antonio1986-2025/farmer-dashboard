@@ -117,6 +117,41 @@ def criar_tabelas():
                 volume INTEGER DEFAULT 0,
                 UNIQUE(ticker, data)
             );
+
+    CREATE TABLE IF NOT EXISTS forca_compradora (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        data TEXT UNIQUE NOT NULL,
+        contratos_abertos_compra INTEGER DEFAULT 0,
+        contratos_abertos_venda INTEGER DEFAULT 0,
+        total_contratos INTEGER DEFAULT 0,
+        diferenca_contratos INTEGER DEFAULT 0,
+        preco_fechamento REAL,
+        preco_abertura REAL,
+        preco_maxima REAL,
+        preco_minima REAL,
+        preco_medio REAL,
+        volume_financeiro REAL,
+        variacao_preco REAL,
+        direcao TEXT DEFAULT 'lateral',
+        sustencao TEXT DEFAULT 'neutro',
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_forca_data ON forca_compradora(data);
+
+    CREATE TABLE IF NOT EXISTS posicionamento_participantes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        data TEXT NOT NULL,
+        participante TEXT NOT NULL,
+        contratos_compra INTEGER DEFAULT 0,
+        contratos_venda INTEGER DEFAULT 0,
+        liquido INTEGER DEFAULT 0,
+        variacao_compra INTEGER DEFAULT 0,
+        variacao_venda INTEGER DEFAULT 0,
+        observacao TEXT DEFAULT '',
+        created_at TEXT DEFAULT (datetime('now','localtime')),
+        UNIQUE(data, participante)
+    );
+    CREATE INDEX IF NOT EXISTS idx_posic_data ON posicionamento_participantes(data);
         """)
         # Migração: adiciona colunas novas em tabelas existentes
         for col in [(( "sinais", "usuario_id"), "INTEGER REFERENCES usuarios(id)"),
@@ -860,3 +895,93 @@ def pegar_resumo_trades(usuario_id: int | None = None):
                 AVG(dias_operacao) as dias_medio
             FROM trades WHERE resultado != 'aberto'
         """).fetchone()
+# ─── Força Compradora ────────────────────────────────────────
+
+def salvar_forca_compradora(data, contratos_compra=0, contratos_venda=0,
+                            preco_fechamento=None, preco_abertura=None,
+                            preco_maxima=None, preco_minima=None,
+                            preco_medio=None, volume_financeiro=None):
+    with conectar() as conn:
+        total = contratos_compra + contratos_venda
+        diferenca = contratos_compra - contratos_venda
+        if preco_fechamento and preco_abertura:
+            variacao = preco_fechamento - preco_abertura
+        else:
+            variacao = None
+
+        if contratos_compra > contratos_venda and diferenca > 100:
+            direcao = 'alta'
+        elif contratos_venda > contratos_compra and abs(diferenca) > 100:
+            direcao = 'baixa'
+        else:
+            direcao = 'lateral'
+
+        if diferenca > 0 and preco_fechamento and variacao and variacao > 0:
+            sustencao = 'forte'
+        elif diferenca < 0 and preco_fechamento and variacao and variacao < 0:
+            sustencao = 'fraca'
+        else:
+            sustencao = 'neutro'
+
+        conn.execute(
+            'INSERT OR REPLACE INTO forca_compradora '
+            '(data, contratos_abertos_compra, contratos_abertos_venda, total_contratos,'
+            ' diferenca_contratos, preco_fechamento, preco_abertura, preco_maxima, preco_minima,'
+            ' preco_medio, volume_financeiro, variacao_preco, direcao, sustencao)'
+            ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            (data, contratos_compra, contratos_venda, total, diferenca,
+             preco_fechamento, preco_abertura, preco_maxima, preco_minima,
+             preco_medio, volume_financeiro, variacao, direcao, sustencao))
+
+
+def pegar_forca_compradora(dias=30):
+    with conectar() as conn:
+        return conn.execute(
+            'SELECT * FROM forca_compradora ORDER BY data DESC LIMIT ?',
+            (dias,)).fetchall()
+
+
+def pegar_ultima_forca():
+    with conectar() as conn:
+        return conn.execute(
+            'SELECT * FROM forca_compradora ORDER BY data DESC LIMIT 1'
+        ).fetchone()
+
+
+def salvar_posicionamento(data, participante, contratos_compra=0,
+                           contratos_venda=0, variacao_compra=0,
+                           variacao_venda=0, observacao=''):
+    with conectar() as conn:
+        liquido = contratos_compra - contratos_venda
+        conn.execute(
+            'INSERT OR REPLACE INTO posicionamento_participantes '
+            '(data, participante, contratos_compra, contratos_venda, liquido,'
+            ' variacao_compra, variacao_venda, observacao)'
+            ' VALUES (?,?,?,?,?,?,?,?)',
+            (data, participante, contratos_compra, contratos_venda, liquido,
+             variacao_compra, variacao_venda, observacao))
+
+
+def pegar_posicionamento(data=None):
+    with conectar() as conn:
+        if data:
+            return conn.execute(
+                'SELECT * FROM posicionamento_participantes'
+                ' WHERE data = ? ORDER BY liquido DESC', (data,)).fetchall()
+        else:
+            ultima = conn.execute(
+                'SELECT MAX(data) FROM posicionamento_participantes'
+            ).fetchone()[0]
+            if ultima:
+                return conn.execute(
+                    'SELECT * FROM posicionamento_participantes'
+                    ' WHERE data = ? ORDER BY liquido DESC', (ultima,)).fetchall()
+            return []
+
+
+def pegar_serie_posicionamento(participante, dias=60):
+    with conectar() as conn:
+        return conn.execute(
+            'SELECT * FROM posicionamento_participantes'
+            ' WHERE participante = ? ORDER BY data DESC LIMIT ?',
+            (participante, dias)).fetchall()

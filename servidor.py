@@ -787,6 +787,65 @@ async def pagina_performance(usuario=Depends(pegar_usuario_atual)):
     return html
 
 
+# ─── Força Compradora ───────────────────────────────────────
+
+@app.get("/api/forca-compradora")
+async def api_forca_compradora(dias: int = 30):
+    registros = banco.pegar_forca_compradora(dias)
+    ultimo = banco.pegar_ultima_forca()
+    posicionamento = banco.pegar_posicionamento()
+    dados = []
+    for r in registros:
+        if len(r) >= 16:
+            dados.append({
+                "data": r[1], "contratos_compra": r[2], "contratos_venda": r[3],
+                "total": r[4], "diferenca": r[5], "preco": r[6],
+                "abertura": r[7], "maxima": r[8], "minima": r[9],
+                "preco_medio": r[10], "volume": r[11], "direcao": r[14],
+                "sustencao": r[15]
+            })
+    posic = []
+    for p in (posicionamento or []):
+        if len(p) >= 8:
+            posic.append({
+                "data": p[1], "participante": p[2],
+                "compra": p[3], "venda": p[4], "liquido": p[5]
+            })
+    return {"dados": dados, "ultimo": dados[0] if dados else None, "posicionamento": posic}
+
+
+@app.post("/api/forca-compradora/salvar")
+async def api_salvar_forca(data: str = None, contratos_compra: int = 0, contratos_venda: int = 0,
+                           preco_fechamento: float = None, preco_abertura: float = None,
+                           preco_maxima: float = None, preco_minima: float = None,
+                           preco_medio: float = None, volume_financeiro: float = None):
+    if not data:
+        from datetime import date
+        data = str(date.today())
+    banco.salvar_forca_compradora(
+        data, contratos_compra, contratos_venda,
+        preco_fechamento, preco_abertura, preco_maxima, preco_minima,
+        preco_medio, volume_financeiro
+    )
+    return {"status": "ok", "data": data}
+
+
+@app.post("/api/posicionamento/salvar")
+async def api_salvar_posicionamento(data: str, participante: str,
+                                     contratos_compra: int = 0, contratos_venda: int = 0,
+                                     variacao_compra: int = 0, variacao_venda: int = 0,
+                                     observacao: str = ""):
+    banco.salvar_posicionamento(data, participante, contratos_compra, contratos_venda,
+                                variacao_compra, variacao_venda, observacao)
+    return {"status": "ok", "participante": participante}
+
+
+@app.get("/dashboard/forca-compradora", response_class=HTMLResponse)
+async def pagina_forca_compradora(usuario=Depends(pegar_usuario_atual)):
+    from dashboard.forca_compradora import gerar_dashboard_forca
+    return gerar_dashboard_forca()
+
+
 # ─── Startup ─────────────────────────────────────────────────
 
 @app.on_event("startup")
