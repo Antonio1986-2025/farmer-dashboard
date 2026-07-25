@@ -162,6 +162,52 @@ async def coleta_completa() -> dict:
         milho_cepea=milho_cepea_val,
         arroba_cepea=arroba_cepea_val,
     )
+
+    # ─── 4.5 Salva Força Compradora automaticamente ──────────────
+    try:
+        from coletores import b3_ao_vivo
+        ao_vivo = b3_ao_vivo.coletar_todos()
+        if ao_vivo:
+            cbot = ao_vivo.get("cbot", {})
+            if cbot.get("disponivel"):
+                # Calcula direção e sustentação
+                variacao = cbot.get("variacao", 0) or 0
+                forca = cbot.get("forca_compradora", 50)
+                vol = cbot.get("volume_total", 0)
+                
+                if variacao > 0.3:
+                    direcao = "alta"
+                elif variacao < -0.3:
+                    direcao = "baixa"
+                else:
+                    direcao = "lateral"
+                
+                # Sustentação: volume alto + força compradora alinhada = sustentável
+                if vol > 200000:
+                    sustencao = "sustentavel" if ((variacao > 0 and forca > 50) or (variacao < 0 and forca < 50)) else "insustentavel"
+                else:
+                    sustencao = "neutro"
+                
+                banco.salvar_forca_compradora(
+                    data=str(date.today()),
+                    contratos_compra=0,
+                    contratos_venda=0,
+                    total_contratos=0,
+                    diferenca_contratos=0,
+                    preco_fechamento=cbot.get("atual"),
+                    preco_abertura=cbot.get("abertura"),
+                    preco_maxima=cbot.get("maxima"),
+                    preco_minima=cbot.get("minima"),
+                    preco_medio=round((cbot.get("abertura", 0) + cbot.get("atual", 0)) / 2, 2) if cbot.get("abertura") and cbot.get("atual") else None,
+                    volume_financeiro=vol,
+                    variacao_preco=variacao,
+                    direcao=direcao,
+                    sustencao=sustencao,
+                )
+                print(f"  📊 Força Compradora salva: {direcao} | {sustencao} | Vol:{vol}")
+    except Exception as e:
+        print(f"  ⚠️ Força Compradora auto: {e}")
+
     for c in clima_dados:
         banco.salvar_clima(c["regiao"], c["temperatura"], c["chuva_mm"], c["umidade"])
     # Análise multi-indicador
