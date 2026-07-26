@@ -196,36 +196,18 @@ async def coleta_completa() -> dict:
         
         # Só salva se tiver preço
         if preco_fechamento:
-            variacao = 0
-            if preco_abertura and preco_fechamento:
-                variacao = round(((preco_fechamento - preco_abertura) / preco_abertura) * 100, 2)
-            
-            if variacao > 0.3:
-                direcao = "alta"
-            elif variacao < -0.3:
-                direcao = "baixa"
-            else:
-                direcao = "lateral"
-            
-            if volume > 200000:
-                sustencao = "sustentavel" if ((variacao > 0 and forca > 50) or (variacao < 0 and forca < 50)) else "insustentavel"
-            else:
-                sustencao = "neutro"
-            
             banco.salvar_forca_compradora(
                 data=str(date.today()),
-                contratos_compra=0, contratos_venda=0, total_contratos=0, diferenca_contratos=0,
+                contratos_compra=int(volume * (forca / 100)),
+                contratos_venda=int(volume * (1 - forca / 100)),
                 preco_fechamento=preco_fechamento,
                 preco_abertura=preco_abertura,
                 preco_maxima=preco_maxima,
                 preco_minima=preco_minima,
                 preco_medio=round((preco_abertura + preco_fechamento) / 2, 2) if preco_abertura and preco_fechamento else preco_fechamento,
                 volume_financeiro=volume,
-                variacao_preco=variacao,
-                direcao=direcao,
-                sustencao=sustencao,
             )
-            print(f"  📊 Força Compradora salva: {direcao} | {sustencao} | Preço:{preco_fechamento}")
+            print(f"  📊 Força Compradora salva: Preço:{preco_fechamento} Vol:{volume}")
     except Exception as e:
         print(f"  ⚠️ Força Compradora auto: {e}")
 
