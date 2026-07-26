@@ -167,47 +167,20 @@ async def coleta_completa() -> dict:
     try:
         from coletores import b3_ao_vivo
         ao_vivo = b3_ao_vivo.coletar_todos()
-        preco_abertura = None
-        preco_fechamento = None
-        preco_maxima = None
-        preco_minima = None
+        
+        # Pega preço do CBOT (AO VIVO) ou do banco (fallback)
+        preco = None
         volume = 0
-        forca = 50.0
-        tem_ao_vivo = False
-        
         if ao_vivo and ao_vivo.get("cbot",{}).get("disponivel"):
-            cbot = ao_vivo["cbot"]
-            preco_abertura = cbot.get("abertura")
-            preco_fechamento = cbot.get("atual")
-            preco_maxima = cbot.get("maxima")
-            preco_minima = cbot.get("minima")
-            volume = cbot.get("volume_total", 0) or 0
-            forca = cbot.get("forca_compradora", 50) or 50
-            tem_ao_vivo = True
+            c = ao_vivo["cbot"]
+            preco = c.get("atual")
+            volume = c.get("volume_total", 0) or 0
+        if not preco:
+            preco = dados_precos.get("cbot") or (banco.pegar_precos(1)[0][4] if banco.pegar_precos(1) else None)
         
-        # Fallback: usa dados do banco quando AO VIVO não disponível
-        if not tem_ao_vivo:
-            precos_hoje = dados_precos or {}
-            preco_fechamento = precos_hoje.get("cbot")
-            if not preco_fechamento:
-                ultimo_db = banco.pegar_precos(1)
-                if ultimo_db:
-                    preco_fechamento = ultimo_db[0].get("cbot") if isinstance(ultimo_db[0], dict) else (ultimo_db[0][4] if len(ultimo_db[0]) > 4 else None)
-        
-        # Só salva se tiver preço
-        if preco_fechamento:
-            banco.salvar_forca_compradora(
-                data=str(date.today()),
-                contratos_compra=int(volume * (forca / 100)),
-                contratos_venda=int(volume * (1 - forca / 100)),
-                preco_fechamento=preco_fechamento,
-                preco_abertura=preco_abertura,
-                preco_maxima=preco_maxima,
-                preco_minima=preco_minima,
-                preco_medio=round((preco_abertura + preco_fechamento) / 2, 2) if preco_abertura and preco_fechamento else preco_fechamento,
-                volume_financeiro=volume,
-            )
-            print(f"  📊 Força Compradora salva: Preço:{preco_fechamento} Vol:{volume}")
+        if preco:
+            banco.salvar_forca_compradora(data=str(date.today()), preco_fechamento=preco, volume_financeiro=volume)
+            print(f"  📊 Força Compradora salva: {preco}")
     except Exception as e:
         print(f"  ⚠️ Força Compradora auto: {e}")
 
