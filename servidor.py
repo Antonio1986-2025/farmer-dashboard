@@ -167,44 +167,65 @@ async def coleta_completa() -> dict:
     try:
         from coletores import b3_ao_vivo
         ao_vivo = b3_ao_vivo.coletar_todos()
-        if ao_vivo:
-            cbot = ao_vivo.get("cbot", {})
-            if cbot.get("disponivel"):
-                # Calcula direção e sustentação
-                variacao = cbot.get("variacao", 0) or 0
-                forca = cbot.get("forca_compradora", 50)
-                vol = cbot.get("volume_total", 0)
-                
-                if variacao > 0.3:
-                    direcao = "alta"
-                elif variacao < -0.3:
-                    direcao = "baixa"
-                else:
-                    direcao = "lateral"
-                
-                # Sustentação: volume alto + força compradora alinhada = sustentável
-                if vol > 200000:
-                    sustencao = "sustentavel" if ((variacao > 0 and forca > 50) or (variacao < 0 and forca < 50)) else "insustentavel"
-                else:
-                    sustencao = "neutro"
-                
-                banco.salvar_forca_compradora(
-                    data=str(date.today()),
-                    contratos_compra=0,
-                    contratos_venda=0,
-                    total_contratos=0,
-                    diferenca_contratos=0,
-                    preco_fechamento=cbot.get("atual"),
-                    preco_abertura=cbot.get("abertura"),
-                    preco_maxima=cbot.get("maxima"),
-                    preco_minima=cbot.get("minima"),
-                    preco_medio=round((cbot.get("abertura", 0) + cbot.get("atual", 0)) / 2, 2) if cbot.get("abertura") and cbot.get("atual") else None,
-                    volume_financeiro=vol,
-                    variacao_preco=variacao,
-                    direcao=direcao,
-                    sustencao=sustencao,
-                )
-                print(f"  📊 Força Compradora salva: {direcao} | {sustencao} | Vol:{vol}")
+        preco_abertura = None
+        preco_fechamento = None
+        preco_maxima = None
+        preco_minima = None
+        volume = 0
+        forca = 50.0
+        tem_ao_vivo = False
+        
+        if ao_vivo and ao_vivo.get("cbot",{}).get("disponivel"):
+            cbot = ao_vivo["cbot"]
+            preco_abertura = cbot.get("abertura")
+            preco_fechamento = cbot.get("atual")
+            preco_maxima = cbot.get("maxima")
+            preco_minima = cbot.get("minima")
+            volume = cbot.get("volume_total", 0) or 0
+            forca = cbot.get("forca_compradora", 50) or 50
+            tem_ao_vivo = True
+        
+        # Fallback: usa dados do banco quando AO VIVO não disponível
+        if not tem_ao_vivo:
+            precos_hoje = dados_precos or {}
+            preco_fechamento = precos_hoje.get("cbot")
+            if not preco_fechamento:
+                ultimo_db = banco.pegar_precos(1)
+                if ultimo_db:
+                    preco_fechamento = ultimo_db[0].get("cbot") if isinstance(ultimo_db[0], dict) else (ultimo_db[0][4] if len(ultimo_db[0]) > 4 else None)
+        
+        # Só salva se tiver preço
+        if preco_fechamento:
+            variacao = 0
+            if preco_abertura and preco_fechamento:
+                variacao = round(((preco_fechamento - preco_abertura) / preco_abertura) * 100, 2)
+            
+            if variacao > 0.3:
+                direcao = "alta"
+            elif variacao < -0.3:
+                direcao = "baixa"
+            else:
+                direcao = "lateral"
+            
+            if volume > 200000:
+                sustencao = "sustentavel" if ((variacao > 0 and forca > 50) or (variacao < 0 and forca < 50)) else "insustentavel"
+            else:
+                sustencao = "neutro"
+            
+            banco.salvar_forca_compradora(
+                data=str(date.today()),
+                contratos_compra=0, contratos_venda=0, total_contratos=0, diferenca_contratos=0,
+                preco_fechamento=preco_fechamento,
+                preco_abertura=preco_abertura,
+                preco_maxima=preco_maxima,
+                preco_minima=preco_minima,
+                preco_medio=round((preco_abertura + preco_fechamento) / 2, 2) if preco_abertura and preco_fechamento else preco_fechamento,
+                volume_financeiro=volume,
+                variacao_preco=variacao,
+                direcao=direcao,
+                sustencao=sustencao,
+            )
+            print(f"  📊 Força Compradora salva: {direcao} | {sustencao} | Preço:{preco_fechamento}")
     except Exception as e:
         print(f"  ⚠️ Força Compradora auto: {e}")
 
